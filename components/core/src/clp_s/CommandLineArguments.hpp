@@ -36,6 +36,11 @@ public:
         Stdout,
     };
 
+    enum class InputSource : uint8_t {
+        Filesystem,
+        S3
+    };
+
     // Constructors
     explicit CommandLineArguments(std::string const& program_name) : m_program_name(program_name) {}
 
@@ -113,6 +118,8 @@ public:
     size_t get_minimum_table_size() const { return m_minimum_table_size; }
 
     std::vector<std::string> const& get_projection_columns() const { return m_projection_columns; }
+
+    InputSource get_input_source() const { return m_input_source; }
 
 private:
     // Methods
@@ -214,6 +221,7 @@ private:
     int64_t m_count_by_time_bucket_size{0};  // Milliseconds
 
     OutputHandlerType m_output_handler_type{OutputHandlerType::Stdout};
+    InputSource m_input_source{InputSource::Filesystem};
 };
 }  // namespace clp_s
 

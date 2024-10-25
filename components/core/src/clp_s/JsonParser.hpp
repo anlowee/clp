@@ -11,6 +11,7 @@
 
 #include "../clp/GlobalMySQLMetadataDB.hpp"
 #include "ArchiveWriter.hpp"
+#include "CommandLineArguments.hpp"
 #include "DictionaryWriter.hpp"
 #include "FileReader.hpp"
 #include "FileWriter.hpp"
@@ -26,6 +27,17 @@
 using namespace simdjson;
 
 namespace clp_s {
+
+enum class S3AuthMethod : uint8_t {
+    SignedUrl
+};
+
+struct S3Option {
+    S3AuthMethod auth_method{S3AuthMethod::SignedUrl};
+    std::string access_key_id;
+    std::string secret_access_key;
+};
+
 struct JsonParserOption {
     std::vector<std::string> file_paths;
     std::string timestamp_key;
@@ -38,6 +50,8 @@ struct JsonParserOption {
     bool single_file_archive;
     bool structurize_arrays;
     std::shared_ptr<clp::GlobalMySQLMetadataDB> metadata_db;
+    CommandLineArguments::InputSource input_source;
+    S3Option s3_config{};
 };
 
 class JsonParser {
@@ -110,6 +124,9 @@ private:
     size_t m_target_encoded_size;
     size_t m_max_document_size;
     bool m_structurize_arrays{false};
+
+    CommandLineArguments::InputSource m_input_source{CommandLineArguments::InputSource::Filesystem};
+    S3Option m_s3_config{};
 };
 }  // namespace clp_s
 

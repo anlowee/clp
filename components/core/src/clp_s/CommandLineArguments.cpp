@@ -148,6 +148,7 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
             po::options_description compression_options("Compression options");
             std::string metadata_db_config_file_path;
             std::string input_path_list_file_path;
+            std::string input_source{"filesystem"};
             // clang-format off
             compression_options.add_options()(
                     "compression-level",
@@ -198,6 +199,12 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
                     "structurize-arrays",
                     po::bool_switch(&m_structurize_arrays),
                     "Structurize arrays instead of compressing them as clp strings."
+            )(
+                    "input-source",
+                    po::value<std::string>(&input_source)
+                            ->value_name("INPUT_SOURCE")
+                            ->default_value(input_source),
+                    "Input source for data (either \"filesystem\" or \"s3\")"
             );
             // clang-format on
 
@@ -249,6 +256,14 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
 
             if (m_file_paths.empty()) {
                 throw std::invalid_argument("No input paths specified.");
+            }
+
+            if ("s3" == input_source) {
+                m_input_source = InputSource::S3;
+            } else if ("filesystem" == input_source) {
+                m_input_source = InputSource::Filesystem;
+            } else {
+                throw std::invalid_argument("Invalid input source: " + input_source);
             }
 
             // Parse and validate global metadata DB config

@@ -1,11 +1,15 @@
 #include "JsonParser.hpp"
 
 #include <iostream>
+#include <memory>
 #include <stack>
 
 #include <simdjson.h>
 #include <spdlog/spdlog.h>
 
+#include "../clp/aws/AwsAuthenticationSigner.hpp"
+#include "../clp/FileReader.hpp"
+#include "../clp/NetworkReader.hpp"
 #include "archive_constants.hpp"
 #include "JsonFileIterator.hpp"
 
@@ -15,17 +19,40 @@ JsonParser::JsonParser(JsonParserOption const& option)
           m_target_encoded_size(option.target_encoded_size),
           m_max_document_size(option.max_document_size),
           m_timestamp_key(option.timestamp_key),
-          m_structurize_arrays(option.structurize_arrays) {
-    if (false == FileUtils::validate_path(option.file_paths)) {
-        exit(1);
+          m_structurize_arrays(option.structurize_arrays),
+          m_input_source(option.input_source),
+          m_s3_config(std::move(option.s3_config)) {
+    if (CommandLineArguments::InputSource::Filesystem == m_input_source) {
+        if (false == FileUtils::validate_path(option.file_paths)) {
+            exit(1);
+        }
+        for (auto& file_path : option.file_paths) {
+            FileUtils::find_all_files(file_path, m_file_paths);
+        }
+    } else if (CommandLineArguments::InputSource::S3 == m_input_source) {
+        clp::aws::AwsAuthenticationSigner signer{
+                m_s3_config.access_key_id,
+                m_s3_config.secret_access_key
+        };
+        try {
+            for (auto const& url : option.file_paths) {
+                std::string signed_url;
+                clp::aws::S3Url s3_url{url};
+                auto rc = signer.generate_presigned_url(s3_url, signed_url);
+                if (clp::ErrorCode::ErrorCode_Success != rc) {
+                    SPDLOG_ERROR("Failed to sign S3 URL - {} - {}", rc, url);
+                    exit(1);
+                }
+                m_file_paths.emplace_back(signed_url);
+            }
+        } catch (std::exception const& e) {
+            SPDLOG_ERROR("Encountered error while signing S3 URLs - {}", e.what());
+            exit(1);
+        }
     }
 
     if (false == m_timestamp_key.empty()) {
         clp_s::StringUtils::tokenize_column_descriptor(m_timestamp_key, m_timestamp_column);
-    }
-
-    for (auto& file_path : option.file_paths) {
-        FileUtils::find_all_files(file_path, m_file_paths);
     }
 
     m_archive_options.archives_dir = option.archives_dir;
@@ -420,14 +447,48 @@ void JsonParser::parse_line(ondemand::value line, int32_t parent_node_id, std::s
     while (!object_stack.empty());
 }
 
+namespace {
+std::shared_ptr<clp::ReaderInterface> try_create_file_reader(std::string const& file_path) {
+    try {
+        return std::make_shared<clp::FileReader>(file_path);
+    } catch (clp::FileReader::OperationFailed const& e) {
+        SPDLOG_ERROR("Failed to open file for reading - {} - {}", file_path, e.what());
+        return nullptr;
+    }
+}
+
+std::shared_ptr<clp::ReaderInterface> try_create_network_reader(std::string const& url) {
+    try {
+        return std::make_shared<clp::NetworkReader>(url);
+    } catch (clp::NetworkReader::OperationFailed const& e) {
+        // Don't log failed url since it can leak a capability.
+        SPDLOG_ERROR("Failed to open url for reading - {}", e.what());
+        return nullptr;
+    }
+}
+}  // namespace
+
 bool JsonParser::parse() {
     for (auto& file_path : m_file_paths) {
-        JsonFileIterator json_file_iterator(file_path, m_max_document_size);
-        if (false == json_file_iterator.is_open()) {
+        std::shared_ptr<clp::ReaderInterface> reader{};
+        switch (m_input_source) {
+            case CommandLineArguments::InputSource::Filesystem:
+                reader = try_create_file_reader(file_path);
+                break;
+            case CommandLineArguments::InputSource::S3:
+                reader = try_create_network_reader(file_path);
+                break;
+            default:
+                reader = nullptr;
+                break;
+        }
+
+        if (nullptr == reader) {
             m_archive_writer->close();
             return false;
         }
 
+        JsonFileIterator json_file_iterator(*reader, m_max_document_size);
         if (simdjson::error_code::SUCCESS != json_file_iterator.get_error()) {
             SPDLOG_ERROR(
                     "Encountered error - {} - while trying to parse {} after parsing 0 bytes",

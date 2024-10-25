@@ -2,30 +2,48 @@ add_subdirectory(search/kql)
 
 set(
         CLP_SOURCES
+        ../clp/aws/AwsAuthenticationSigner.cpp
+        ../clp/aws/AwsAuthenticationSigner.hpp
+        ../clp/CurlDownloadHandler.cpp
+        ../clp/CurlDownloadHandler.hpp
+        ../clp/CurlEasyHandle.hpp
+        ../clp/CurlGlobalInstance.cpp
+        ../clp/CurlGlobalInstance.hpp
+        ../clp/CurlOperationFailed.hpp
+        ../clp/CurlStringList.hpp
         ../clp/cli_utils.cpp
         ../clp/cli_utils.hpp
         ../clp/database_utils.cpp
         ../clp/database_utils.hpp
         ../clp/Defs.h
         ../clp/ErrorCode.hpp
+        ../clp/FileReader.cpp
+        ../clp/FileReader.hpp
         ../clp/GlobalMetadataDB.hpp
         ../clp/GlobalMetadataDBConfig.cpp
         ../clp/GlobalMetadataDBConfig.hpp
         ../clp/GlobalMySQLMetadataDB.cpp
         ../clp/GlobalMySQLMetadataDB.hpp
+        ../clp/hash_utils.cpp
+        ../clp/hash_utils.hpp
         ../clp/MySQLDB.cpp
         ../clp/MySQLDB.hpp
         ../clp/MySQLParamBindings.cpp
         ../clp/MySQLParamBindings.hpp
         ../clp/MySQLPreparedStatement.cpp
         ../clp/MySQLPreparedStatement.hpp
+        ../clp/NetworkReader.cpp
+        ../clp/NetworkReader.hpp
         ../clp/networking/socket_utils.cpp
         ../clp/networking/socket_utils.hpp
         ../clp/ReaderInterface.cpp
         ../clp/ReaderInterface.hpp
         ../clp/streaming_archive/ArchiveMetadata.cpp
         ../clp/streaming_archive/ArchiveMetadata.hpp
+        ../clp/Thread.cpp
+        ../clp/Thread.hpp
         ../clp/TraceableException.hpp
+        ../clp/type_utils.hpp
         ../clp/WriterInterface.cpp
         ../clp/WriterInterface.hpp
 )
@@ -195,12 +213,14 @@ target_link_libraries(
         clp-s
         PRIVATE
         absl::flat_hash_map
-        Boost::filesystem Boost::iostreams Boost::program_options
+        Boost::filesystem Boost::iostreams Boost::program_options Boost::regex
+        ${CURL_LIBRARIES}
         clp::string_utils
         kql
         MariaDBClient::MariaDBClient
         ${MONGOCXX_TARGET}
         msgpack-cxx
+        OpenSSL::Crypto
         simdjson
         spdlog::spdlog
         yaml-cpp::yaml-cpp

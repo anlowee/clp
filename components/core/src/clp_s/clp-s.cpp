@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <iostream>
@@ -11,6 +12,7 @@
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
 
+#include "../clp/CurlGlobalInstance.hpp"
 #include "../clp/GlobalMySQLMetadataDB.hpp"
 #include "../clp/streaming_archive/ArchiveMetadata.hpp"
 #include "../reducer/network_utils.hpp"
@@ -97,6 +99,14 @@ bool compress(CommandLineArguments const& command_line_arguments) {
     option.print_archive_stats = command_line_arguments.print_archive_stats();
     option.single_file_archive = command_line_arguments.get_single_file_archive();
     option.structurize_arrays = command_line_arguments.get_structurize_arrays();
+    option.input_source = command_line_arguments.get_input_source();
+
+    if (clp_s::CommandLineArguments::InputSource::S3 == command_line_arguments.get_input_source()) {
+        auto& s3_config = option.s3_config;
+        s3_config.auth_method = clp_s::S3AuthMethod::SignedUrl;
+        s3_config.access_key_id = std::getenv("AWS_ACCESS_KEY_ID");
+        s3_config.secret_access_key = std::getenv("AWS_SECRET_ACCESS_KEY");
+    }
 
     auto const& db_config_container = command_line_arguments.get_metadata_db_config();
     if (db_config_container.has_value()) {
@@ -269,6 +279,7 @@ int main(int argc, char const* argv[]) {
 
     clp_s::TimestampPattern::init();
     mongocxx::instance const mongocxx_instance{};
+    clp::CurlGlobalInstance const curl_instance{};
 
     CommandLineArguments command_line_arguments("clp-s");
     auto parsing_result = command_line_arguments.parse_arguments(argc, argv);
