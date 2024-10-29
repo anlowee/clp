@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 
+#include "../clp/CheckpointReader.hpp"
 #include "../clp/ReaderInterface.hpp"
 #include "SingleFileArchiveDefs.hpp"
 #include "TimestampDictionaryReader.hpp"
@@ -52,6 +53,7 @@ private:
 
     // TODO: switch to readerinterface
     std::shared_ptr<clp::ReaderInterface> m_reader;
+    clp::CheckpointReader m_checkpoint_reader{nullptr, 0};
 };
 
 }  // namespace clp_s

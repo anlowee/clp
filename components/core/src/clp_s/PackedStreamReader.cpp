@@ -1,5 +1,6 @@
 #include "PackedStreamReader.hpp"
 
+#include "../clp/CheckpointReader.hpp"
 #include "archive_constants.hpp"
 #include "ArchiveReaderAdaptor.hpp"
 
@@ -99,12 +100,17 @@ void PackedStreamReader::read_stream(
     m_prev_stream_id = stream_id;
 
     auto& [file_offset, uncompressed_size] = m_stream_metadata[stream_id];
-    if (auto error = m_packed_stream_reader->try_seek_from_begin(m_begin_offset + file_offset);
+    size_t adjusted_file_offset = m_begin_offset + file_offset;
+    if (auto error = m_packed_stream_reader->try_seek_from_begin(adjusted_file_offset);
         clp::ErrorCode::ErrorCode_Success != error)
     {
         throw OperationFailed(ErrorCodeFailure, __FILE__, __LINE__);
     }
-    m_packed_stream_decompressor.open(*m_packed_stream_reader, cDecompressorFileReadBufferCapacity);
+    clp::CheckpointReader checkpoint_reader{
+            m_packed_stream_reader,
+            adjusted_file_offset + uncompressed_size
+    };
+    m_packed_stream_decompressor.open(checkpoint_reader, cDecompressorFileReadBufferCapacity);
     if (buf_size < uncompressed_size) {
         // make_shared is supposed to work here for c++20, but it seems like the compiler version
         // we use doesn't support it, so we convert a unique_ptr to a shared_ptr instead.

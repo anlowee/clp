@@ -4,6 +4,8 @@ set(
         CLP_SOURCES
         ../clp/aws/AwsAuthenticationSigner.cpp
         ../clp/aws/AwsAuthenticationSigner.hpp
+        ../clp/CheckpointReader.cpp
+        ../clp/CheckpointReader.hpp
         ../clp/CurlDownloadHandler.cpp
         ../clp/CurlDownloadHandler.hpp
         ../clp/CurlEasyHandle.hpp

@@ -7,6 +7,7 @@
 #include <msgpack.hpp>
 #include <spdlog/spdlog.h>
 
+#include "../clp/CheckpointReader.hpp"
 #include "../clp/FileReader.hpp"
 #include "archive_constants.hpp"
 
@@ -89,8 +90,10 @@ ErrorCode ArchiveReaderAdaptor::load_archive_metadata() {
     // TODO validate magic number, version, compression type, etc.
     m_files_section_offset = sizeof(m_archive_header) + m_archive_header.metadata_section_size;
 
+    m_checkpoint_reader = clp::CheckpointReader{m_reader.get(), m_files_section_offset};
+
     ZstdDecompressor decompressor;
-    decompressor.open(*m_reader.get(), cDecompressorFileReadBufferCapacity);
+    decompressor.open(m_checkpoint_reader, cDecompressorFileReadBufferCapacity);
 
     uint8_t num_metadata_packets{};
     auto rc = decompressor.try_read_numeric_value(num_metadata_packets);
@@ -154,10 +157,14 @@ clp::ReaderInterface& ArchiveReaderAdaptor::checkout_reader_for_section(std::str
     }
 
     size_t file_offset = m_files_section_offset + it->o;
-    // FIXME
+    ++it;
+    size_t next_file_offset{m_archive_header.compressed_size};
+    if (m_archive_file_info.files.end() != it) {
+        next_file_offset = m_files_section_offset + it->o;
+    }
+
     if (cur_pos > file_offset) {
-        SPDLOG_WARN("{} cur {} wanted {}", section, cur_pos, file_offset);
-        // throw OperationFailed(ErrorCodeCorrupt, __FILENAME__, __LINE__);
+        throw OperationFailed(ErrorCodeCorrupt, __FILENAME__, __LINE__);
     }
 
     if (cur_pos != file_offset) {
@@ -169,7 +176,8 @@ clp::ReaderInterface& ArchiveReaderAdaptor::checkout_reader_for_section(std::str
     }
 
     m_current_reader_holder.emplace(section);
-    return *m_reader;
+    m_checkpoint_reader = clp::CheckpointReader{m_reader.get(), next_file_offset};
+    return m_checkpoint_reader;
 }
 
 void ArchiveReaderAdaptor::checkin_reader_for_section(std::string_view section) {
