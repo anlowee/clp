@@ -1,6 +1,11 @@
 #include "ReaderUtils.hpp"
 
+#include "../clp/aws/AwsAuthenticationSigner.hpp"
+#include "../clp/FileReader.hpp"
+#include "../clp/NetworkReader.hpp"
+#include "../clp/ReaderInterface.hpp"
 #include "archive_constants.hpp"
+#include "Utils.hpp"
 
 namespace clp_s {
 std::shared_ptr<SchemaTree> ReaderUtils::read_schema_tree(ArchiveReaderAdaptor& adaptor) {
@@ -150,4 +155,72 @@ std::vector<std::string> ReaderUtils::get_archives(std::string const& archives_d
     return archive_paths;
 }
 
+bool ReaderUtils::validate_and_populate_input_paths(
+        std::vector<std::string> const& input,
+        std::vector<std::string>& validated_input,
+        InputOption const& config
+) {
+    if (CommandLineArguments::InputSource::Filesystem == config.source) {
+        if (false == FileUtils::validate_path(input)) {
+            return false;
+        }
+        for (auto& file_path : input) {
+            FileUtils::find_all_files(file_path, validated_input);
+        }
+    } else if (CommandLineArguments::InputSource::S3 == config.source) {
+        clp::aws::AwsAuthenticationSigner signer{
+                config.s3_config.access_key_id,
+                config.s3_config.secret_access_key
+        };
+        try {
+            for (auto const& url : input) {
+                std::string signed_url;
+                clp::aws::S3Url s3_url{url};
+                auto rc = signer.generate_presigned_url(s3_url, signed_url);
+                if (clp::ErrorCode::ErrorCode_Success != rc) {
+                    SPDLOG_ERROR("Failed to sign S3 URL - {} - {}", rc, url);
+                    return false;
+                }
+                validated_input.emplace_back(signed_url);
+            }
+        } catch (std::exception const& e) {
+            SPDLOG_ERROR("Encountered error while signing S3 URLs - {}", e.what());
+            return false;
+        }
+    } else {
+        return false;
+    }
+    return true;
+}
+
+namespace {
+std::shared_ptr<clp::ReaderInterface> try_create_file_reader(std::string const& file_path) {
+    try {
+        return std::make_shared<clp::FileReader>(file_path);
+    } catch (clp::FileReader::OperationFailed const& e) {
+        SPDLOG_ERROR("Failed to open file for reading - {} - {}", file_path, e.what());
+        return nullptr;
+    }
+}
+
+std::shared_ptr<clp::ReaderInterface> try_create_network_reader(std::string const& url) {
+    try {
+        return std::make_shared<clp::NetworkReader>(url);
+    } catch (clp::NetworkReader::OperationFailed const& e) {
+        SPDLOG_ERROR("Failed to open url for reading - {}", e.what());
+        return nullptr;
+    }
+}
+}  // namespace
+
+std::shared_ptr<clp::ReaderInterface>
+ReaderUtils::try_create_reader(std::string const& path, InputOption const& config) {
+    if (CommandLineArguments::InputSource::Filesystem == config.source) {
+        return try_create_file_reader(path);
+    } else if (CommandLineArguments::InputSource::S3 == config.source) {
+        return try_create_network_reader(path);
+    } else {
+        return nullptr;
+    }
+}
 }  // namespace clp_s

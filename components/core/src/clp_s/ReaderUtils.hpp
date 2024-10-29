@@ -1,7 +1,11 @@
 #ifndef CLP_S_READERUTILS_HPP
 #define CLP_S_READERUTILS_HPP
 
+#include <string>
+
+#include "../clp/ReaderInterface.hpp"
 #include "ArchiveReaderAdaptor.hpp"
+#include "CommandLineArguments.hpp"
 #include "DictionaryReader.hpp"
 #include "Schema.hpp"
 #include "SchemaReader.hpp"
@@ -10,6 +14,22 @@
 #include "TraceableException.hpp"
 
 namespace clp_s {
+
+enum class S3AuthMethod : uint8_t {
+    SignedUrl
+};
+
+struct S3Option {
+    S3AuthMethod auth_method{S3AuthMethod::SignedUrl};
+    std::string access_key_id;
+    std::string secret_access_key;
+};
+
+struct InputOption {
+    S3Option s3_config{};
+    CommandLineArguments::InputSource source{CommandLineArguments::InputSource::Filesystem};
+};
+
 class ReaderUtils {
 public:
     class OperationFailed : public TraceableException {
@@ -69,6 +89,15 @@ public:
      * @return the list of archives
      */
     static std::vector<std::string> get_archives(std::string const& archives_dir);
+
+    static bool validate_and_populate_input_paths(
+            std::vector<std::string> const& input,
+            std::vector<std::string>& validated_input,
+            InputOption const& config
+    );
+
+    static std::shared_ptr<clp::ReaderInterface>
+    try_create_reader(std::string const& path, InputOption const& config);
 
 private:
     /**

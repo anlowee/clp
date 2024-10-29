@@ -99,10 +99,10 @@ bool compress(CommandLineArguments const& command_line_arguments) {
     option.print_archive_stats = command_line_arguments.print_archive_stats();
     option.single_file_archive = command_line_arguments.get_single_file_archive();
     option.structurize_arrays = command_line_arguments.get_structurize_arrays();
-    option.input_source = command_line_arguments.get_input_source();
+    option.input_config.source = command_line_arguments.get_input_source();
 
     if (clp_s::CommandLineArguments::InputSource::S3 == command_line_arguments.get_input_source()) {
-        auto& s3_config = option.s3_config;
+        auto& s3_config = option.input_config.s3_config;
         s3_config.auth_method = clp_s::S3AuthMethod::SignedUrl;
         s3_config.access_key_id = std::getenv("AWS_ACCESS_KEY_ID");
         s3_config.secret_access_key = std::getenv("AWS_SECRET_ACCESS_KEY");
