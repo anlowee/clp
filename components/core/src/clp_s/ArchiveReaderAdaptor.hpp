@@ -8,6 +8,7 @@
 
 #include "../clp/CheckpointReader.hpp"
 #include "../clp/ReaderInterface.hpp"
+#include "Defs.hpp"
 #include "SingleFileArchiveDefs.hpp"
 #include "TimestampDictionaryReader.hpp"
 #include "TraceableException.hpp"
@@ -23,7 +24,11 @@ public:
                 : TraceableException(error_code, filename, line_number) {}
     };
 
-    explicit ArchiveReaderAdaptor(std::string path, bool single_file_archive);
+    explicit ArchiveReaderAdaptor(
+            std::string path,
+            InputOption const& input_config,
+            bool single_file_archive
+    );
 
     ~ArchiveReaderAdaptor();
 
@@ -36,6 +41,8 @@ public:
     std::shared_ptr<TimestampDictionaryReader> get_timestamp_dictionary() {
         return m_timestamp_dictionary;
     }
+
+    ArchiveHeader const& get_header() const { return m_archive_header; }
 
 private:
     ErrorCode try_read_archive_file_info(ZstdDecompressor& decompressor, size_t size);
@@ -54,6 +61,7 @@ private:
     // TODO: switch to readerinterface
     std::shared_ptr<clp::ReaderInterface> m_reader;
     clp::CheckpointReader m_checkpoint_reader{nullptr, 0};
+    InputOption m_input_config{};
 };
 
 }  // namespace clp_s

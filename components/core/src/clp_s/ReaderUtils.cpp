@@ -160,32 +160,16 @@ bool ReaderUtils::validate_and_populate_input_paths(
         std::vector<std::string>& validated_input,
         InputOption const& config
 ) {
-    if (CommandLineArguments::InputSource::Filesystem == config.source) {
+    if (InputSource::Filesystem == config.source) {
         if (false == FileUtils::validate_path(input)) {
             return false;
         }
         for (auto& file_path : input) {
             FileUtils::find_all_files(file_path, validated_input);
         }
-    } else if (CommandLineArguments::InputSource::S3 == config.source) {
-        clp::aws::AwsAuthenticationSigner signer{
-                config.s3_config.access_key_id,
-                config.s3_config.secret_access_key
-        };
-        try {
-            for (auto const& url : input) {
-                std::string signed_url;
-                clp::aws::S3Url s3_url{url};
-                auto rc = signer.generate_presigned_url(s3_url, signed_url);
-                if (clp::ErrorCode::ErrorCode_Success != rc) {
-                    SPDLOG_ERROR("Failed to sign S3 URL - {} - {}", rc, url);
-                    return false;
-                }
-                validated_input.emplace_back(signed_url);
-            }
-        } catch (std::exception const& e) {
-            SPDLOG_ERROR("Encountered error while signing S3 URLs - {}", e.what());
-            return false;
+    } else if (InputSource::S3 == config.source) {
+        for (auto const& url : input) {
+            validated_input.emplace_back(url);
         }
     } else {
         return false;
@@ -203,9 +187,23 @@ std::shared_ptr<clp::ReaderInterface> try_create_file_reader(std::string const& 
     }
 }
 
-std::shared_ptr<clp::ReaderInterface> try_create_network_reader(std::string const& url) {
+std::shared_ptr<clp::ReaderInterface>
+try_create_network_reader(std::string const& url, InputOption const& config) {
+    clp::aws::AwsAuthenticationSigner signer{
+            config.s3_config.access_key_id,
+            config.s3_config.secret_access_key
+    };
+
     try {
-        return std::make_shared<clp::NetworkReader>(url);
+        std::string signed_url;
+        clp::aws::S3Url s3_url{url};
+        auto rc = signer.generate_presigned_url(s3_url, signed_url);
+        if (clp::ErrorCode::ErrorCode_Success != rc) {
+            SPDLOG_ERROR("Failed to sign S3 URL - {} - {}", rc, url);
+            return nullptr;
+        }
+
+        return std::make_shared<clp::NetworkReader>(signed_url);
     } catch (clp::NetworkReader::OperationFailed const& e) {
         SPDLOG_ERROR("Failed to open url for reading - {}", e.what());
         return nullptr;
@@ -215,10 +213,10 @@ std::shared_ptr<clp::ReaderInterface> try_create_network_reader(std::string cons
 
 std::shared_ptr<clp::ReaderInterface>
 ReaderUtils::try_create_reader(std::string const& path, InputOption const& config) {
-    if (CommandLineArguments::InputSource::Filesystem == config.source) {
+    if (InputSource::Filesystem == config.source) {
         return try_create_file_reader(path);
-    } else if (CommandLineArguments::InputSource::S3 == config.source) {
-        return try_create_network_reader(path);
+    } else if (InputSource::S3 == config.source) {
+        return try_create_network_reader(path, config);
     } else {
         return nullptr;
     }

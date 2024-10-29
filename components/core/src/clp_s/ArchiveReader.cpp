@@ -9,17 +9,25 @@
 using std::string_view;
 
 namespace clp_s {
-void ArchiveReader::open(string_view archives_dir, string_view archive_id) {
+void ArchiveReader::open(
+        string_view archives_dir,
+        string_view archive_id,
+        InputOption const& input_config
+) {
     if (m_is_open) {
         throw OperationFailed(ErrorCodeNotReady, __FILENAME__, __LINE__);
     }
     m_is_open = true;
     m_archive_id = archive_id;
-    std::filesystem::path archive_path{archives_dir};
-    archive_path /= m_archive_id;
-    auto const archive_path_str = archive_path.string();
+    std::string archive_path_str{archives_dir};
+    if (InputSource::Filesystem == input_config.source) {
+        std::filesystem::path archive_path{archives_dir};
+        archive_path /= m_archive_id;
+        archive_path_str = archive_path.string();
+    }
 
-    m_archive_reader_adaptor = std::make_shared<ArchiveReaderAdaptor>(archive_path_str, true);
+    m_archive_reader_adaptor
+            = std::make_shared<ArchiveReaderAdaptor>(archive_path_str, input_config, true);
 
     auto rc = m_archive_reader_adaptor->load_archive_metadata();
     if (ErrorCodeSuccess != rc) {

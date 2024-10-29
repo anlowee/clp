@@ -36,11 +36,6 @@ public:
         Stdout,
     };
 
-    enum class InputSource : uint8_t {
-        Filesystem,
-        S3
-    };
-
     // Constructors
     explicit CommandLineArguments(std::string const& program_name) : m_program_name(program_name) {}
 

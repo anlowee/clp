@@ -36,7 +36,9 @@ public:
      * @param archives_dir
      * @param archive_id
      */
-    void open(std::string_view archives_dir, std::string_view archive_id);
+    void
+    open(std::string_view archives_dir, std::string_view archive_id, InputOption const& input_config
+    );
 
     /**
      * Reads the dictionaries and metadata.

@@ -8,15 +8,21 @@
 #include <spdlog/spdlog.h>
 
 #include "../clp/CheckpointReader.hpp"
-#include "../clp/FileReader.hpp"
 #include "archive_constants.hpp"
+#include "Defs.hpp"
+#include "ReaderUtils.hpp"
 
 namespace clp_s {
 
-ArchiveReaderAdaptor::ArchiveReaderAdaptor(std::string path, bool single_file_archive)
+ArchiveReaderAdaptor::ArchiveReaderAdaptor(
+        std::string path,
+        InputOption const& input_config,
+        bool single_file_archive
+)
         : m_path(path),
           m_single_file_archive(single_file_archive),
-          m_timestamp_dictionary(std::make_shared<TimestampDictionaryReader>()) {
+          m_timestamp_dictionary(std::make_shared<TimestampDictionaryReader>()),
+          m_input_config{input_config} {
     if (false == m_single_file_archive) {
         // TODO: support both
         throw OperationFailed(ErrorCodeBadParam, __FILENAME__, __LINE__);
@@ -72,9 +78,12 @@ ArchiveReaderAdaptor::try_read_timestamp_dictionary(ZstdDecompressor& decompress
 
 ErrorCode ArchiveReaderAdaptor::load_archive_metadata() {
     constexpr size_t cDecompressorFileReadBufferCapacity = 64 * 1024;
-    try {
-        m_reader = std::make_shared<clp::FileReader>(m_path + clp_s::constants::cArchiveFile);
-    } catch (std::exception const& e) {
+    std::string path = m_path;
+    if (InputSource::Filesystem == m_input_config.source) {
+        path += clp_s::constants::cArchiveFile;
+    }
+    m_reader = ReaderUtils::try_create_reader(path, m_input_config);
+    if (nullptr == m_reader) {
         return ErrorCodeFileNotFound;
     }
 

@@ -6,6 +6,7 @@
 #include "../clp/ReaderInterface.hpp"
 #include "ArchiveReaderAdaptor.hpp"
 #include "CommandLineArguments.hpp"
+#include "Defs.hpp"
 #include "DictionaryReader.hpp"
 #include "Schema.hpp"
 #include "SchemaReader.hpp"
@@ -14,22 +15,6 @@
 #include "TraceableException.hpp"
 
 namespace clp_s {
-
-enum class S3AuthMethod : uint8_t {
-    SignedUrl
-};
-
-struct S3Option {
-    S3AuthMethod auth_method{S3AuthMethod::SignedUrl};
-    std::string access_key_id;
-    std::string secret_access_key;
-};
-
-struct InputOption {
-    S3Option s3_config{};
-    CommandLineArguments::InputSource source{CommandLineArguments::InputSource::Filesystem};
-};
-
 class ReaderUtils {
 public:
     class OperationFailed : public TraceableException {

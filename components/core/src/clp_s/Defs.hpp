@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <cstdint>
 #include <limits>
+#include <string>
 
 namespace clp_s {
 // Types
@@ -35,6 +36,26 @@ constexpr archive_format_version_t cArchiveFormatDevelopmentVersionFlag = 0x8000
 using file_id_t = uint64_t;
 using segment_id_t = uint64_t;
 using encoded_variable_t = int64_t;
+
+enum class InputSource : uint8_t {
+    Filesystem,
+    S3
+};
+
+enum class S3AuthMethod : uint8_t {
+    SignedUrl
+};
+
+struct S3Option {
+    S3AuthMethod auth_method{S3AuthMethod::SignedUrl};
+    std::string access_key_id;
+    std::string secret_access_key;
+};
+
+struct InputOption {
+    S3Option s3_config{};
+    InputSource source{InputSource::Filesystem};
+};
 }  // namespace clp_s
 
 // Macros

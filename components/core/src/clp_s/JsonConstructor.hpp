@@ -8,6 +8,7 @@
 
 #include "ArchiveReader.hpp"
 #include "ColumnReader.hpp"
+#include "Defs.hpp"
 #include "DictionaryReader.hpp"
 #include "ErrorCode.hpp"
 #include "FileWriter.hpp"
@@ -32,6 +33,7 @@ struct JsonConstructorOption {
     bool ordered{false};
     size_t ordered_chunk_size{0};
     std::optional<MetadataDbOption> metadata_db;
+    InputOption input_config;
 };
 
 class JsonConstructor {
