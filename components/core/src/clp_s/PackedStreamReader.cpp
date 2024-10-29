@@ -55,7 +55,7 @@ void PackedStreamReader::open_packed_streams(std::shared_ptr<ArchiveReaderAdapto
     if (auto rc = m_packed_stream_reader->try_get_pos(m_begin_offset);
         clp::ErrorCode::ErrorCode_Success != rc)
     {
-        throw OperationFailed(ErrorCodeFailure, __FILE__, __LINE__);
+        throw OperationFailed(static_cast<ErrorCode>(rc), __FILE__, __LINE__);
     }
 }
 
@@ -104,12 +104,15 @@ void PackedStreamReader::read_stream(
     if (auto error = m_packed_stream_reader->try_seek_from_begin(adjusted_file_offset);
         clp::ErrorCode::ErrorCode_Success != error)
     {
-        throw OperationFailed(ErrorCodeFailure, __FILE__, __LINE__);
+        throw OperationFailed(static_cast<ErrorCode>(error), __FILE__, __LINE__);
     }
-    clp::CheckpointReader checkpoint_reader{
-            m_packed_stream_reader,
-            adjusted_file_offset + uncompressed_size
-    };
+
+    size_t end_pos = m_adaptor->get_header().compressed_size;
+    if ((stream_id + 1) < m_stream_metadata.size()) {
+        end_pos = m_begin_offset + m_stream_metadata[stream_id + 1].file_offset;
+    }
+    clp::CheckpointReader checkpoint_reader{m_packed_stream_reader, end_pos};
+
     m_packed_stream_decompressor.open(checkpoint_reader, cDecompressorFileReadBufferCapacity);
     if (buf_size < uncompressed_size) {
         // make_shared is supposed to work here for c++20, but it seems like the compiler version
