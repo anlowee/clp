@@ -9,6 +9,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "ArchiveReaderAdaptor.hpp"
 #include "DictionaryReader.hpp"
 #include "PackedStreamReader.hpp"
 #include "ReaderUtils.hpp"
@@ -43,12 +44,17 @@ public:
     void read_dictionaries_and_metadata();
 
     /**
+     * Opens packed streams for reading.
+     */
+    void open_packed_streams();
+
+    /**
      * Reads the variable dictionary from the archive.
      * @param lazy
      * @return the variable dictionary reader
      */
     std::shared_ptr<VariableDictionaryReader> read_variable_dictionary(bool lazy = false) {
-        m_var_dict->read_new_entries(lazy);
+        m_var_dict->read_entries(lazy);
         return m_var_dict;
     }
 
@@ -58,7 +64,7 @@ public:
      * @return the log type dictionary reader
      */
     std::shared_ptr<LogTypeDictionaryReader> read_log_type_dictionary(bool lazy = false) {
-        m_log_dict->read_new_entries(lazy);
+        m_log_dict->read_entries(lazy);
         return m_log_dict;
     }
 
@@ -68,7 +74,7 @@ public:
      * @return the array dictionary reader
      */
     std::shared_ptr<LogTypeDictionaryReader> read_array_dictionary(bool lazy = false) {
-        m_array_dict->read_new_entries(lazy);
+        m_array_dict->read_entries(lazy);
         return m_array_dict;
     }
 
@@ -76,15 +82,6 @@ public:
      * Reads the metadata from the archive.
      */
     void read_metadata();
-
-    /**
-     * Reads the local timestamp dictionary from the archive.
-     * @return the timestamp dictionary reader
-     */
-    std::shared_ptr<TimestampDictionaryReader> read_timestamp_dictionary() {
-        m_timestamp_dict->read_new_entries();
-        return m_timestamp_dict;
-    }
 
     /**
      * Reads a table from the archive.
@@ -114,7 +111,7 @@ public:
     std::shared_ptr<LogTypeDictionaryReader> get_array_dictionary() { return m_array_dict; }
 
     std::shared_ptr<TimestampDictionaryReader> get_timestamp_dictionary() {
-        return m_timestamp_dict;
+        return m_archive_reader_adaptor->get_timestamp_dictionary();
     }
 
     std::shared_ptr<SchemaTree> get_schema_tree() { return m_schema_tree; }
@@ -197,7 +194,7 @@ private:
     std::shared_ptr<VariableDictionaryReader> m_var_dict;
     std::shared_ptr<LogTypeDictionaryReader> m_log_dict;
     std::shared_ptr<LogTypeDictionaryReader> m_array_dict;
-    std::shared_ptr<TimestampDictionaryReader> m_timestamp_dict;
+    std::shared_ptr<ArchiveReaderAdaptor> m_archive_reader_adaptor;
 
     std::shared_ptr<SchemaTree> m_schema_tree;
     std::shared_ptr<ReaderUtils::SchemaMap> m_schema_map;
@@ -208,7 +205,6 @@ private:
     };
 
     PackedStreamReader m_stream_reader;
-    FileReader m_table_metadata_file_reader;
     ZstdDecompressor m_table_metadata_decompressor;
     SchemaReader m_schema_reader;
     std::shared_ptr<char[]> m_stream_buffer{};

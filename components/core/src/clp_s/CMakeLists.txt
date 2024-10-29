@@ -54,6 +54,8 @@ set(
         archive_constants.hpp
         ArchiveReader.cpp
         ArchiveReader.hpp
+        ArchiveReaderAdaptor.cpp
+        ArchiveReaderAdaptor.hpp
         ArchiveWriter.cpp
         ArchiveWriter.hpp
         BufferViewReader.hpp

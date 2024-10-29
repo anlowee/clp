@@ -48,6 +48,7 @@ void JsonConstructor::store() {
     m_archive_reader = std::make_unique<ArchiveReader>();
     m_archive_reader->open(m_option.archives_dir, m_option.archive_id);
     m_archive_reader->read_dictionaries_and_metadata();
+    m_archive_reader->open_packed_streams();
     if (false == m_option.ordered) {
         FileWriter writer;
         writer.open(
