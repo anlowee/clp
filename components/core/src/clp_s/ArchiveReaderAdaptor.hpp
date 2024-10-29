@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-#include "FileReader.hpp"
+#include "../clp/ReaderInterface.hpp"
 #include "SingleFileArchiveDefs.hpp"
 #include "TimestampDictionaryReader.hpp"
 #include "TraceableException.hpp"
@@ -28,7 +28,7 @@ public:
 
     ErrorCode load_archive_metadata();
 
-    FileReader& checkout_reader_for_section(std::string_view section);
+    clp::ReaderInterface& checkout_reader_for_section(std::string_view section);
 
     void checkin_reader_for_section(std::string_view section);
 
@@ -51,7 +51,7 @@ private:
     std::shared_ptr<TimestampDictionaryReader> m_timestamp_dictionary;
 
     // TODO: switch to readerinterface
-    FileReader m_file_reader;
+    std::shared_ptr<clp::ReaderInterface> m_reader;
 };
 
 }  // namespace clp_s

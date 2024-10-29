@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "../clp/ReaderInterface.hpp"
 #include "ArchiveReaderAdaptor.hpp"
-#include "FileReader.hpp"
 #include "ZstdDecompressor.hpp"
 
 namespace clp_s {
@@ -87,7 +87,7 @@ private:
 
     std::vector<PackedStreamMetadata> m_stream_metadata;
     std::shared_ptr<ArchiveReaderAdaptor> m_adaptor;
-    FileReader* m_packed_stream_reader{};
+    clp::ReaderInterface* m_packed_stream_reader{};
     ZstdDecompressor m_packed_stream_decompressor;
     PackedStreamReaderState m_state{PackedStreamReaderState::Uninitialized};
     size_t m_begin_offset{};

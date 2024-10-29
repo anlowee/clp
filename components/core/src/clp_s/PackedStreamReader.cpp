@@ -51,8 +51,10 @@ void PackedStreamReader::open_packed_streams(std::shared_ptr<ArchiveReaderAdapto
     }
     m_adaptor = adaptor;
     m_packed_stream_reader = &m_adaptor->checkout_reader_for_section(constants::cArchiveTablesFile);
-    if (auto rc = m_packed_stream_reader->try_get_pos(m_begin_offset); ErrorCodeSuccess != rc) {
-        throw OperationFailed(rc, __FILE__, __LINE__);
+    if (auto rc = m_packed_stream_reader->try_get_pos(m_begin_offset);
+        clp::ErrorCode::ErrorCode_Success != rc)
+    {
+        throw OperationFailed(ErrorCodeFailure, __FILE__, __LINE__);
     }
 }
 
@@ -98,9 +100,9 @@ void PackedStreamReader::read_stream(
 
     auto& [file_offset, uncompressed_size] = m_stream_metadata[stream_id];
     if (auto error = m_packed_stream_reader->try_seek_from_begin(m_begin_offset + file_offset);
-        ErrorCodeSuccess != error)
+        clp::ErrorCode::ErrorCode_Success != error)
     {
-        throw OperationFailed(error, __FILE__, __LINE__);
+        throw OperationFailed(ErrorCodeFailure, __FILE__, __LINE__);
     }
     m_packed_stream_decompressor.open(*m_packed_stream_reader, cDecompressorFileReadBufferCapacity);
     if (buf_size < uncompressed_size) {

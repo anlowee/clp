@@ -7,6 +7,7 @@
 #include <msgpack.hpp>
 #include <spdlog/spdlog.h>
 
+#include "../clp/FileReader.hpp"
 #include "archive_constants.hpp"
 
 namespace clp_s {
@@ -22,7 +23,7 @@ ArchiveReaderAdaptor::ArchiveReaderAdaptor(std::string path, bool single_file_ar
 }
 
 ArchiveReaderAdaptor::~ArchiveReaderAdaptor() {
-    m_file_reader.close();
+    m_reader.reset();
 }
 
 ErrorCode
@@ -70,28 +71,29 @@ ArchiveReaderAdaptor::try_read_timestamp_dictionary(ZstdDecompressor& decompress
 
 ErrorCode ArchiveReaderAdaptor::load_archive_metadata() {
     constexpr size_t cDecompressorFileReadBufferCapacity = 64 * 1024;
-    auto rc = m_file_reader.try_open(m_path + clp_s::constants::cArchiveFile);
-    if (ErrorCodeSuccess != rc) {
-        return rc;
+    try {
+        m_reader = std::make_shared<clp::FileReader>(m_path + clp_s::constants::cArchiveFile);
+    } catch (std::exception const& e) {
+        return ErrorCodeFileNotFound;
     }
 
     std::array<char, sizeof(ArchiveHeader)> header_buffer;
-    rc = m_file_reader.try_read_exact_length(
+    auto clp_rc = m_reader->try_read_exact_length(
             reinterpret_cast<char*>(&m_archive_header),
             sizeof(m_archive_header)
     );
-    if (ErrorCodeSuccess != rc) {
-        return rc;
+    if (clp::ErrorCode::ErrorCode_Success != clp_rc) {
+        return ErrorCodeErrno;
     }
 
     // TODO validate magic number, version, compression type, etc.
     m_files_section_offset = sizeof(m_archive_header) + m_archive_header.metadata_section_size;
 
     ZstdDecompressor decompressor;
-    decompressor.open(m_file_reader, cDecompressorFileReadBufferCapacity);
+    decompressor.open(*m_reader.get(), cDecompressorFileReadBufferCapacity);
 
     uint8_t num_metadata_packets{};
-    rc = decompressor.try_read_numeric_value(num_metadata_packets);
+    auto rc = decompressor.try_read_numeric_value(num_metadata_packets);
     if (ErrorCodeSuccess != rc) {
         return rc;
     }
@@ -132,7 +134,7 @@ ErrorCode ArchiveReaderAdaptor::load_archive_metadata() {
     return ErrorCodeSuccess;
 }
 
-FileReader& ArchiveReaderAdaptor::checkout_reader_for_section(std::string_view section) {
+clp::ReaderInterface& ArchiveReaderAdaptor::checkout_reader_for_section(std::string_view section) {
     if (m_current_reader_holder.has_value()) {
         throw OperationFailed(ErrorCodeNotReady, __FILENAME__, __LINE__);
     }
@@ -147,8 +149,8 @@ FileReader& ArchiveReaderAdaptor::checkout_reader_for_section(std::string_view s
     }
 
     size_t cur_pos{};
-    if (auto rc = m_file_reader.try_get_pos(cur_pos); ErrorCodeSuccess != rc) {
-        throw OperationFailed(rc, __FILENAME__, __LINE__);
+    if (auto rc = m_reader->try_get_pos(cur_pos); clp::ErrorCode::ErrorCode_Success != rc) {
+        throw OperationFailed(ErrorCodeFailure, __FILENAME__, __LINE__);
     }
 
     size_t file_offset = m_files_section_offset + it->o;
@@ -159,13 +161,15 @@ FileReader& ArchiveReaderAdaptor::checkout_reader_for_section(std::string_view s
     }
 
     if (cur_pos != file_offset) {
-        if (auto rc = m_file_reader.try_seek_from_begin(file_offset); ErrorCodeSuccess != rc) {
-            throw OperationFailed(rc, __FILENAME__, __LINE__);
+        if (auto rc = m_reader->try_seek_from_begin(file_offset);
+            clp::ErrorCode::ErrorCode_Success != rc)
+        {
+            throw OperationFailed(ErrorCodeFailure, __FILENAME__, __LINE__);
         }
     }
 
     m_current_reader_holder.emplace(section);
-    return m_file_reader;
+    return *m_reader;
 }
 
 void ArchiveReaderAdaptor::checkin_reader_for_section(std::string_view section) {
