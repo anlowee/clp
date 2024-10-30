@@ -1,16 +1,17 @@
 #include "ArchiveReaderAdaptor.hpp"
 
+#include <cstring>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include <msgpack.hpp>
-#include <spdlog/spdlog.h>
 
 #include "../clp/CheckpointReader.hpp"
 #include "archive_constants.hpp"
 #include "Defs.hpp"
 #include "ReaderUtils.hpp"
+#include "SingleFileArchiveDefs.hpp"
 
 namespace clp_s {
 
@@ -35,8 +36,7 @@ ArchiveReaderAdaptor::~ArchiveReaderAdaptor() {
 
 ErrorCode
 ArchiveReaderAdaptor::try_read_archive_file_info(ZstdDecompressor& decompressor, size_t size) {
-    std::vector<char> buffer;
-    buffer.resize(size);
+    std::vector<char> buffer(size);
     auto rc = decompressor.try_read_exact_length(buffer.data(), size);
     if (ErrorCodeSuccess != rc) {
         return rc;
@@ -76,6 +76,27 @@ ArchiveReaderAdaptor::try_read_timestamp_dictionary(ZstdDecompressor& decompress
     return m_timestamp_dictionary->read(decompressor);
 }
 
+ErrorCode ArchiveReaderAdaptor::try_read_archive_info(ZstdDecompressor& decompressor, size_t size) {
+    std::vector<char> buffer(size);
+    auto rc = decompressor.try_read_exact_length(buffer.data(), buffer.size());
+    if (ErrorCodeSuccess != rc) {
+        return rc;
+    }
+
+    try {
+        auto obj_handle = msgpack::unpack(buffer.data(), buffer.size());
+        auto obj = obj_handle.get();
+        m_archive_info = obj.as<ArchiveInfoPacket>();
+    } catch (std::exception const& e) {
+        return ErrorCodeCorrupt;
+    }
+
+    if (1 != m_archive_info.num_segments) {
+        return ErrorCodeUnsupported;
+    }
+    return ErrorCodeSuccess;
+}
+
 ErrorCode ArchiveReaderAdaptor::load_archive_metadata() {
     constexpr size_t cDecompressorFileReadBufferCapacity = 64 * 1024;
     std::string path = m_path;
@@ -96,7 +117,23 @@ ErrorCode ArchiveReaderAdaptor::load_archive_metadata() {
         return ErrorCodeErrno;
     }
 
-    // TODO validate magic number, version, compression type, etc.
+    if (0
+        != std::memcmp(
+                m_archive_header.magic_number,
+                cStructuredSFAMagicNumber,
+                sizeof(cStructuredSFAMagicNumber)
+        ))
+    {
+        return ErrorCodeMetadataCorrupted;
+    }
+
+    switch (static_cast<ArchiveCompressionType>(m_archive_header.compression_type)) {
+        case ArchiveCompressionType::Zstd:
+            break;
+        default:
+            return ErrorCodeUnsupported;
+    }
+
     m_files_section_offset = sizeof(m_archive_header) + m_archive_header.metadata_section_size;
 
     m_checkpoint_reader = clp::CheckpointReader{m_reader.get(), m_files_section_offset};
@@ -129,11 +166,9 @@ ErrorCode ArchiveReaderAdaptor::load_archive_metadata() {
             case ArchiveMetadataPacketType::TimestampDictionary:
                 rc = try_read_timestamp_dictionary(decompressor, packet_size);
                 break;
-            case ArchiveMetadataPacketType::ArchiveInfo: {
-                std::vector<char> buf;
-                buf.resize(packet_size);
-                rc = decompressor.try_read_exact_length(buf.data(), buf.size());
-            }
+            case ArchiveMetadataPacketType::ArchiveInfo:
+                rc = try_read_archive_info(decompressor, packet_size);
+                break;
             default:
                 break;
         }

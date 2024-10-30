@@ -73,10 +73,13 @@ private:
 
     ErrorCode try_read_timestamp_dictionary(ZstdDecompressor& decompressor, size_t size);
 
+    ErrorCode try_read_archive_info(ZstdDecompressor& decompressor, size_t size);
+
     bool m_single_file_archive{false};
     std::string m_path;
     ArchiveFileInfoPacket m_archive_file_info{};
     ArchiveHeader m_archive_header{};
+    ArchiveInfoPacket m_archive_info{};
     size_t m_files_section_offset{};
     std::optional<std::string> m_current_reader_holder;
     std::shared_ptr<TimestampDictionaryReader> m_timestamp_dictionary;
