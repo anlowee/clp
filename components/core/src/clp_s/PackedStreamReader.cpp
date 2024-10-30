@@ -60,14 +60,19 @@ void PackedStreamReader::open_packed_streams(std::shared_ptr<ArchiveReaderAdapto
 }
 
 void PackedStreamReader::close() {
+    bool needs_checkin{false};
     switch (m_state) {
         case PackedStreamReaderState::PackedStreamsOpened:
         case PackedStreamReaderState::ReadingPackedStreams:
+            needs_checkin = true;
             break;
         default:
-            throw OperationFailed(ErrorCodeNotReady, __FILE__, __LINE__);
+            needs_checkin = false;
+            break;
     }
-    m_adaptor->checkin_reader_for_section(constants::cArchiveTablesFile);
+    if (needs_checkin) {
+        m_adaptor->checkin_reader_for_section(constants::cArchiveTablesFile);
+    }
     m_adaptor.reset();
     m_prev_stream_id = 0ULL;
     m_begin_offset = 0ULL;
