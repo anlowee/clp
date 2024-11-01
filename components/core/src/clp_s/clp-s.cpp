@@ -327,6 +327,38 @@ int main(int argc, char const* argv[]) {
             SPDLOG_ERROR("{}", e.what());
             return 1;
         }
+    } else if (CommandLineArguments::Command::Inspect == command_line_arguments.get_command()) {
+        clp_s::InputOption local_input_config;
+        local_input_config.source = clp_s::InputSource::Filesystem;
+        auto const& archives_dir = command_line_arguments.get_archives_dir();
+        if (clp_s::InputSource::Filesystem == input_config.source
+            && false == std::filesystem::is_directory(archives_dir))
+        {
+            SPDLOG_ERROR("'{}' is not a directory", archives_dir);
+            return 1;
+        }
+        auto const& archive_id = command_line_arguments.get_archive_id();
+        auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
+        if (false == archive_id.empty()) {
+            archive_reader->open(archives_dir, archive_id, input_config);
+            auto schema_tree = archive_reader->get_schema_tree();
+            SPDLOG_CRITICAL("We get the schema tree {}", schema_tree->get_nodes().size());
+            archive_reader->close();
+        } else {
+            for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
+                if (false == entry.is_directory()) {
+                    // Skip non-directories
+                    continue;
+                }
+
+                auto const archive_id = entry.path().filename().string();
+                archive_reader->open(archives_dir, archive_id, input_config);
+                archive_reader->get_schema_tree();
+                auto schema_tree = archive_reader->get_schema_tree();
+                SPDLOG_CRITICAL("We get the schema tree {}", schema_tree->get_nodes().size());
+                archive_reader->close();
+            }
+        }
     } else {
         auto const& query = command_line_arguments.get_query();
         auto query_stream = std::istringstream(query);

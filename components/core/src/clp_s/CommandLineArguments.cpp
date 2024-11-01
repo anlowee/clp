@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <boost/program_options.hpp>
+#include <boost/program_options/options_description.hpp>
 #include <spdlog/spdlog.h>
 
 #include "../clp/cli_utils.hpp"
@@ -125,6 +126,7 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
             case (char)Command::Compress:
             case (char)Command::Extract:
             case (char)Command::Search:
+            case (char)Command::Inspect:
                 m_command = (Command)command_input;
                 break;
             default:
@@ -393,6 +395,33 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
                         "Recording decompression metadata only supported for ordered decompression"
                 );
             }
+        } else if ((char)Command::Inspect == command_input) {
+            po::options_description inspect_options;
+            inspect_options.add_options()(
+                    "archives-dir",
+                    po::value<std::string>(&m_archives_dir),
+                    "The directory containing the archives"
+            );
+            po::positional_options_description positional_options;
+            positional_options.add("archives-dir", 1);
+            po::options_description match_options("Match Controls");
+            match_options.add_options()(
+                "archive-id",
+                po::value<std::string>(&m_archive_id)->value_name("ID"),
+                "Limit search to the archive with the given ID"
+            );
+            inspect_options.add(match_options);
+            std::vector<std::string> unrecognized_options
+                    = po::collect_unrecognized(parsed.options, po::include_positional);
+            unrecognized_options.erase(unrecognized_options.begin());
+            po::store(
+                    po::command_line_parser(unrecognized_options)
+                            .options(inspect_options)
+                            .positional(positional_options)
+                            .run(),
+                    parsed_command_line_options
+            );
+            po::notify(parsed_command_line_options);
         } else if ((char)Command::Search == command_input) {
             std::string archives_dir;
             std::string query;

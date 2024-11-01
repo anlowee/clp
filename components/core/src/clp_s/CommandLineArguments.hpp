@@ -26,6 +26,7 @@ public:
     enum class Command : char {
         Compress = 'c',
         Extract = 'x',
+        Inspect = 'i',
         Search = 's'
     };
 
