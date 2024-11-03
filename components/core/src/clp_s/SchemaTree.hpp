@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <memory>
+#include <stack>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -148,6 +149,8 @@ public:
 
     std::vector<SchemaNode> const& get_nodes() const { return m_nodes; }
 
+    std::vector<std::string> const& get_fields();
+
     /**
      * Write the contents of the SchemaTree to the schema tree file
      * @param archives_dir
@@ -183,6 +186,10 @@ private:
     absl::flat_hash_map<std::tuple<int32_t, std::string_view const, NodeType>, int32_t> m_node_map;
     int32_t m_object_subtree_id{-1};
     int32_t m_metadata_subtree_id{-1};
+    std::vector<std::string> m_fields;
+
+    std::stack<std::string> m_dfs_stack;
+    void collect_field_paths(SchemaNode const& node);
 };
 }  // namespace clp_s
 

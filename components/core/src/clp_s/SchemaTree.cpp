@@ -1,4 +1,10 @@
 #include "SchemaTree.hpp"
+#include <memory>
+#include <stack>
+#include <string>
+#include <string_view>
+#include <vector>
+#include <spdlog.h>
 
 #include "archive_constants.hpp"
 #include "FileWriter.hpp"
@@ -48,6 +54,58 @@ int32_t SchemaTree::get_metadata_field_id(std::string_view const field_name) {
     }
 
     return -1;
+}
+
+void SchemaTree::collect_field_paths(SchemaNode const& node) {
+    auto& children_ids = node.get_children_ids();
+    if (children_ids.empty()) {
+        std::string_view type = [node]() -> std::string_view {
+            switch (node.get_type()) {
+                case NodeType::Integer: return "Integer";
+                case NodeType::Float: return "Float";
+                case NodeType::ClpString: return "ClpString";
+                case NodeType::Boolean: return "Boolean";
+                case NodeType::Object: return "Object";
+                case NodeType::UnstructuredArray: return "UnstructuredArray";
+                case NodeType::NullValue: return "NullValue";
+                case NodeType::DateString: return "DateString";
+                case NodeType::StructuredArray: return "StructuredArray";
+                default: return "Unknown";
+            }
+        }();
+        std::string field = fmt::format("{}:{}", node.get_key_name(), type);
+        std::stack<std::string> temp_stack;
+        while (false == m_dfs_stack.empty()) {
+            std::string_view mid_field = m_dfs_stack.top();
+            m_dfs_stack.pop();
+            temp_stack.push(std::string{mid_field});
+            field = fmt::format("{}.{}", mid_field, field);
+        }
+        while (false == temp_stack.empty()) {
+            m_dfs_stack.push(temp_stack.top());
+            temp_stack.pop();
+        }
+        m_fields.push_back(field);
+    } else {
+        if (this->get_root_node_id() != node.get_id()) {
+             m_dfs_stack.push(node.get_key_name());
+        }
+        for (auto const& id : children_ids) {
+            collect_field_paths(this->get_node(id));
+        }
+        if (this->get_root_node_id() != node.get_id()) {
+             m_dfs_stack.pop();
+        }
+    }
+}
+
+std::vector<std::string> const& SchemaTree::get_fields() {
+    m_fields.clear();
+    collect_field_paths(m_nodes[0]);
+    while (false == m_dfs_stack.empty()) {
+        m_dfs_stack.pop();
+    }
+    return m_fields;
 }
 
 size_t SchemaTree::store(std::string const& archives_dir, int compression_level) {
