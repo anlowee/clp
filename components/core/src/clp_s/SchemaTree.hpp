@@ -3,8 +3,10 @@
 
 #include <functional>
 #include <memory>
+#include <stack>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <absl/container/flat_hash_map.h>
@@ -97,6 +99,8 @@ public:
 
     std::vector<SchemaNode> const& get_nodes() const { return m_nodes; }
 
+    std::vector<std::string> const& get_fields();
+
     /**
      * Write the contents of the SchemaTree to the schema tree file
      * @param archives_dir
@@ -129,7 +133,11 @@ public:
 
 private:
     std::vector<SchemaNode> m_nodes;
+    std::vector<std::string> m_fields;
     absl::flat_hash_map<std::tuple<int32_t, std::string, NodeType>, int32_t> m_node_map;
+
+    std::stack<std::string> m_dfs_stack;
+    void collect_field_paths(SchemaNode const& node);
 };
 }  // namespace clp_s
 

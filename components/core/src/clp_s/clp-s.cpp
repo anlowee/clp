@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -360,9 +361,13 @@ int main(int argc, char const* argv[]) {
         if (false == archive_id.empty()) {
             archive_reader->open(archives_dir, archive_id, input_config);
             auto schema_tree = archive_reader->get_schema_tree();
-            SPDLOG_CRITICAL("We get the schema tree {}", schema_tree->get_nodes().size());
+            auto fields = schema_tree->get_fields();
+            for (auto const& field : fields) {
+                std::cout << field << std::endl;
+            }
             archive_reader->close();
         } else {
+            std::set<std::string> mst_field_set;
             for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
                 if (false == entry.is_directory()) {
                     // Skip non-directories
@@ -371,10 +376,13 @@ int main(int argc, char const* argv[]) {
 
                 auto const archive_id = entry.path().filename().string();
                 archive_reader->open(archives_dir, archive_id, input_config);
-                archive_reader->get_schema_tree();
                 auto schema_tree = archive_reader->get_schema_tree();
-                SPDLOG_CRITICAL("We get the schema tree {}", schema_tree->get_nodes().size());
+                auto fields = schema_tree->get_fields();
+                mst_field_set.insert(fields.begin(), fields.end());
                 archive_reader->close();
+            }
+            for (auto const& field : mst_field_set) {
+                std::cout << field << std::endl;
             }
         }
     } else {
