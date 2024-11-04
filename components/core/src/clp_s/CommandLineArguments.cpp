@@ -404,13 +404,6 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
             );
             po::positional_options_description positional_options;
             positional_options.add("archives-dir", 1);
-            po::options_description match_options("Match Controls");
-            match_options.add_options()(
-                "archive-id",
-                po::value<std::string>(&m_archive_id)->value_name("ID"),
-                "Limit search to the archive with the given ID"
-            );
-            inspect_options.add(match_options);
             std::vector<std::string> unrecognized_options
                     = po::collect_unrecognized(parsed.options, po::include_positional);
             unrecognized_options.erase(unrecognized_options.begin());
