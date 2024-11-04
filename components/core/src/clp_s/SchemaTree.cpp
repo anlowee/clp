@@ -33,7 +33,7 @@ int32_t SchemaTree::add_node(int32_t parent_node_id, NodeType type, std::string 
     return node_id;
 }
 
-void SchemaTree::collect_field_paths(SchemaNode const& node) {
+void SchemaTree::collect_field_paths(SchemaNode const& node, ZstdCompressor& compressor) {
     auto& children_ids = node.get_children_ids();
     if (children_ids.empty()) {
         std::string_view type = [node]() -> std::string_view {
@@ -50,7 +50,7 @@ void SchemaTree::collect_field_paths(SchemaNode const& node) {
                 default: return "Unknown";
             }
         }();
-        std::string field = fmt::format("{}:{}", node.get_key_name(), type);
+        std::string field = node.get_key_name();
         std::stack<std::string> temp_stack;
         while (false == m_dfs_stack.empty()) {
             std::string_view mid_field = m_dfs_stack.top();
@@ -62,13 +62,17 @@ void SchemaTree::collect_field_paths(SchemaNode const& node) {
             m_dfs_stack.push(temp_stack.top());
             temp_stack.pop();
         }
+        compressor.write_numeric_value(field.size());
+        compressor.write_string(field);
+        compressor.write_numeric_value(node.get_type());
+        field = fmt::format("{}:{}", field, type);
         m_fields.push_back(field);
     } else {
         if (this->get_root_node_id() != node.get_id()) {
              m_dfs_stack.push(node.get_key_name());
         }
         for (auto const& id : children_ids) {
-            collect_field_paths(this->get_node(id));
+            collect_field_paths(this->get_node(id), compressor);
         }
         if (this->get_root_node_id() != node.get_id()) {
              m_dfs_stack.pop();
@@ -76,12 +80,22 @@ void SchemaTree::collect_field_paths(SchemaNode const& node) {
     }
 }
 
-std::vector<std::string> const& SchemaTree::get_fields() {
+std::vector<std::string> const& SchemaTree::get_fields(std::string const& archives_dir) {
+    FileWriter field_writer;
+    ZstdCompressor field_compressor;
+
+    field_writer.open(
+            archives_dir + constants::cArchiveSchemaTreeFile,
+            FileWriter::OpenMode::CreateForWriting
+    );
+    field_compressor.open(field_writer, cDefaultCompressionLevel);
     m_fields.clear();
-    collect_field_paths(m_nodes[0]);
+    collect_field_paths(m_nodes[0], field_compressor);
     while (false == m_dfs_stack.empty()) {
         m_dfs_stack.pop();
     }
+    field_compressor.close();
+    field_writer.close();
     return m_fields;
 }
 

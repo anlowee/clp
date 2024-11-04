@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <absl/container/flat_hash_map.h>
+#include "ZstdCompressor.hpp"
 
 namespace clp_s {
 enum class NodeType : uint8_t {
@@ -99,7 +100,7 @@ public:
 
     std::vector<SchemaNode> const& get_nodes() const { return m_nodes; }
 
-    std::vector<std::string> const& get_fields();
+    std::vector<std::string> const& get_fields(std::string const& archives_dir);
 
     /**
      * Write the contents of the SchemaTree to the schema tree file
@@ -137,7 +138,7 @@ private:
     absl::flat_hash_map<std::tuple<int32_t, std::string, NodeType>, int32_t> m_node_map;
 
     std::stack<std::string> m_dfs_stack;
-    void collect_field_paths(SchemaNode const& node);
+    void collect_field_paths(SchemaNode const& node, ZstdCompressor& compressor);
 };
 }  // namespace clp_s
 

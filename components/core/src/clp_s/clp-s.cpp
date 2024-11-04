@@ -361,7 +361,7 @@ int main(int argc, char const* argv[]) {
         if (false == archive_id.empty()) {
             archive_reader->open(archives_dir, archive_id, input_config);
             auto schema_tree = archive_reader->get_schema_tree();
-            auto fields = schema_tree->get_fields();
+            auto fields = schema_tree->get_fields(archives_dir);
             for (auto const& field : fields) {
                 std::cout << field << std::endl;
             }
@@ -377,7 +377,7 @@ int main(int argc, char const* argv[]) {
                 auto const archive_id = entry.path().filename().string();
                 archive_reader->open(archives_dir, archive_id, input_config);
                 auto schema_tree = archive_reader->get_schema_tree();
-                auto fields = schema_tree->get_fields();
+                auto fields = schema_tree->get_fields(archives_dir);
                 mst_field_set.insert(fields.begin(), fields.end());
                 archive_reader->close();
             }
