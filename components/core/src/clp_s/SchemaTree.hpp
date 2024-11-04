@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <absl/container/flat_hash_map.h>
+#include "ZstdCompressor.hpp"
 
 namespace clp_s {
 /**
@@ -149,7 +150,7 @@ public:
 
     std::vector<SchemaNode> const& get_nodes() const { return m_nodes; }
 
-    std::vector<std::string> const& get_fields();
+    std::vector<std::string> const& get_fields(std::string const& archives_dir);
 
     /**
      * Write the contents of the SchemaTree to the schema tree file
@@ -189,7 +190,7 @@ private:
     std::vector<std::string> m_fields;
 
     std::stack<std::string> m_dfs_stack;
-    void collect_field_paths(SchemaNode const& node);
+    void collect_field_paths(SchemaNode const& node, ZstdCompressor& compressor);
 };
 }  // namespace clp_s
 
