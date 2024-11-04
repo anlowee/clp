@@ -6,6 +6,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include <json/single_include/nlohmann/json.hpp>
@@ -19,8 +20,12 @@
 #include "../reducer/network_utils.hpp"
 #include "CommandLineArguments.hpp"
 #include "Defs.hpp"
+#include "FileWriter.hpp"
 #include "JsonConstructor.hpp"
 #include "JsonParser.hpp"
+#include "SchemaTree.hpp"
+#include "ZstdCompressor.hpp"
+#include "archive_constants.hpp"
 #include "search/AddTimestampConditions.hpp"
 #include "search/ConvertToExists.hpp"
 #include "search/EmptyExpr.hpp"
@@ -351,40 +356,60 @@ int main(int argc, char const* argv[]) {
         local_input_config.source = clp_s::InputSource::Filesystem;
         auto const& archives_dir = command_line_arguments.get_archives_dir();
         if (clp_s::InputSource::Filesystem == input_config.source
-            && false == std::filesystem::is_directory(archives_dir))
-        {
+            && false == std::filesystem::is_directory(archives_dir)) {
             SPDLOG_ERROR("'{}' is not a directory", archives_dir);
             return 1;
         }
         auto const& archive_id = command_line_arguments.get_archive_id();
         auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
-        if (false == archive_id.empty()) {
+        std::set<std::pair<std::string, clp_s::NodeType>> mst_field_set;
+        for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
+            if (false == entry.is_directory()) {
+                // Skip non-directories
+                continue;
+            }
+
+            auto const archive_id = entry.path().filename().string();
             archive_reader->open(archives_dir, archive_id, input_config);
             auto schema_tree = archive_reader->get_schema_tree();
             auto fields = schema_tree->get_fields(archives_dir);
-            for (auto const& field : fields) {
-                std::cout << field << std::endl;
-            }
+            mst_field_set.insert(fields.begin(), fields.end());
             archive_reader->close();
-        } else {
-            std::set<std::string> mst_field_set;
-            for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
-                if (false == entry.is_directory()) {
-                    // Skip non-directories
-                    continue;
-                }
-
-                auto const archive_id = entry.path().filename().string();
-                archive_reader->open(archives_dir, archive_id, input_config);
-                auto schema_tree = archive_reader->get_schema_tree();
-                auto fields = schema_tree->get_fields(archives_dir);
-                mst_field_set.insert(fields.begin(), fields.end());
-                archive_reader->close();
-            }
-            for (auto const& field : mst_field_set) {
-                std::cout << field << std::endl;
-            }
         }
+        clp_s::FileWriter field_writer;
+        clp_s::ZstdCompressor field_compressor;
+        field_writer.open(
+            archives_dir + clp_s::constants::cArchiveSchemaTreeFile,
+            clp_s::FileWriter::OpenMode::CreateForWriting
+        );
+        field_compressor.open(field_writer, clp_s::cDefaultCompressionLevel);
+
+        std::cout << "size: " << mst_field_set.size();
+        field_compressor.write_numeric_value(mst_field_set.size());
+        for (auto const& field : mst_field_set) {
+            field_compressor.write_numeric_value(field.first.size());
+            field_compressor.write_string(field.first);
+            field_compressor.write_numeric_value(field.second);
+            std::cout << field.first << ":";
+            std::string type = [field]() -> std::string {
+                switch (field.second) {
+                    case clp_s::NodeType::Integer: return "Integer";
+                    case clp_s::NodeType::Float: return "Float";
+                    case clp_s::NodeType::ClpString: return "ClpString";
+                    case clp_s::NodeType::Boolean: return "Boolean";
+                    case clp_s::NodeType::Object: return "Object";
+                    case clp_s::NodeType::UnstructuredArray: return "UnstructuredArray";
+                    case clp_s::NodeType::NullValue: return "NullValue";
+                    case clp_s::NodeType::DateString: return "DateString";
+                    case clp_s::NodeType::StructuredArray: return "StructuredArray";
+                    default: return "Unknown";
+                }
+            }();
+            std::cout << type << std::endl;
+        }
+
+        field_compressor.close();
+        field_writer.close();
     } else {
         auto const& query = command_line_arguments.get_query();
         auto query_stream = std::istringstream(query);

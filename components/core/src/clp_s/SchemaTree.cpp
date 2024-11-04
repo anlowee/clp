@@ -33,23 +33,9 @@ int32_t SchemaTree::add_node(int32_t parent_node_id, NodeType type, std::string 
     return node_id;
 }
 
-void SchemaTree::collect_field_paths(SchemaNode const& node, ZstdCompressor& compressor) {
+void SchemaTree::collect_field_paths(SchemaNode const& node) {
     auto& children_ids = node.get_children_ids();
     if (children_ids.empty()) {
-        std::string_view type = [node]() -> std::string_view {
-            switch (node.get_type()) {
-                case NodeType::Integer: return "Integer";
-                case NodeType::Float: return "Float";
-                case NodeType::ClpString: return "ClpString";
-                case NodeType::Boolean: return "Boolean";
-                case NodeType::Object: return "Object";
-                case NodeType::UnstructuredArray: return "UnstructuredArray";
-                case NodeType::NullValue: return "NullValue";
-                case NodeType::DateString: return "DateString";
-                case NodeType::StructuredArray: return "StructuredArray";
-                default: return "Unknown";
-            }
-        }();
         std::string field = node.get_key_name();
         std::stack<std::string> temp_stack;
         while (false == m_dfs_stack.empty()) {
@@ -62,17 +48,13 @@ void SchemaTree::collect_field_paths(SchemaNode const& node, ZstdCompressor& com
             m_dfs_stack.push(temp_stack.top());
             temp_stack.pop();
         }
-        compressor.write_numeric_value(field.size());
-        compressor.write_string(field);
-        compressor.write_numeric_value(node.get_type());
-        field = fmt::format("{}:{}", field, type);
-        m_fields.push_back(field);
+        m_fields.push_back(std::pair<std::string, NodeType>{field, node.get_type()});
     } else {
         if (this->get_root_node_id() != node.get_id()) {
              m_dfs_stack.push(node.get_key_name());
         }
         for (auto const& id : children_ids) {
-            collect_field_paths(this->get_node(id), compressor);
+            collect_field_paths(this->get_node(id));
         }
         if (this->get_root_node_id() != node.get_id()) {
              m_dfs_stack.pop();
@@ -80,22 +62,12 @@ void SchemaTree::collect_field_paths(SchemaNode const& node, ZstdCompressor& com
     }
 }
 
-std::vector<std::string> const& SchemaTree::get_fields(std::string const& archives_dir) {
-    FileWriter field_writer;
-    ZstdCompressor field_compressor;
-
-    field_writer.open(
-            archives_dir + constants::cArchiveSchemaTreeFile,
-            FileWriter::OpenMode::CreateForWriting
-    );
-    field_compressor.open(field_writer, cDefaultCompressionLevel);
+std::vector<std::pair<std::string, NodeType>> const& SchemaTree::get_fields(std::string const& archives_dir) {
     m_fields.clear();
-    collect_field_paths(m_nodes[0], field_compressor);
+    collect_field_paths(m_nodes[0]);
     while (false == m_dfs_stack.empty()) {
         m_dfs_stack.pop();
     }
-    field_compressor.close();
-    field_writer.close();
     return m_fields;
 }
 
