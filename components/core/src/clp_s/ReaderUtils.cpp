@@ -199,7 +199,7 @@ try_create_network_reader(std::string const& url, InputOption const& config) {
         clp::aws::S3Url s3_url{url};
         auto rc = signer.generate_presigned_url(s3_url, signed_url);
         if (clp::ErrorCode::ErrorCode_Success != rc) {
-            SPDLOG_ERROR("Failed to sign S3 URL - {} - {}", rc, url);
+            SPDLOG_ERROR("Failed to sign S3 URL - {} - {}", clp::enum_to_underlying_type(rc), url);
             return nullptr;
         }
 
