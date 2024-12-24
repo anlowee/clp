@@ -169,8 +169,7 @@ add_subdirectory(submodules/log-surgeon EXCLUDE_FROM_ALL)
 
 # Find and setup MariaDBClient library
 if(CLP_USE_STATIC_LIBS)
-    # NOTE: We can't statically link to MariaDBClient since it's GPL
-    message(AUTHOR_WARNING "MariaDBClient cannot be statically linked due to its license.")
+    set(MariaDBClient_USE_STATIC_LIBS ON)
 endif()
 find_package(MariaDBClient 3.1.0 REQUIRED)
 if(MariaDBClient_FOUND)
@@ -554,3 +553,4 @@ target_link_libraries(unitTest
 target_compile_features(unitTest
         PRIVATE cxx_std_20
         )
+
