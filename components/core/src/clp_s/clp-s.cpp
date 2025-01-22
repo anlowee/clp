@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <iostream>
@@ -13,6 +14,7 @@
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
 
+#include "../clp/CurlGlobalInstance.hpp"
 #include "../clp/GlobalMySQLMetadataDB.hpp"
 #include "../clp/streaming_archive/ArchiveMetadata.hpp"
 #include "../reducer/network_utils.hpp"
@@ -93,7 +95,9 @@ bool compress(CommandLineArguments const& command_line_arguments) {
     }
 
     clp_s::JsonParserOption option{};
-    option.file_paths = command_line_arguments.get_file_paths();
+    option.input_paths = command_line_arguments.get_input_paths();
+    option.network_auth = command_line_arguments.get_network_auth();
+    option.input_file_type = command_line_arguments.get_file_type();
     option.archives_dir = archives_dir.string();
     option.target_encoded_size = command_line_arguments.get_target_encoded_size();
     option.max_document_size = command_line_arguments.get_max_document_size();
@@ -119,9 +123,16 @@ bool compress(CommandLineArguments const& command_line_arguments) {
     }
 
     clp_s::JsonParser parser(option);
-    if (false == parser.parse()) {
-        SPDLOG_ERROR("Encountered error while parsing input");
-        return false;
+    if (CommandLineArguments::FileType::KeyValueIr == option.input_file_type) {
+        if (false == parser.parse_from_ir()) {
+            SPDLOG_ERROR("Encountered error while parsing input");
+            return false;
+        }
+    } else {
+        if (false == parser.parse()) {
+            SPDLOG_ERROR("Encountered error while parsing input");
+            return false;
+        }
     }
     parser.store();
     return true;
@@ -140,7 +151,7 @@ bool search_archive(
 ) {
     auto const& query = command_line_arguments.get_query();
 
-    auto timestamp_dict = archive_reader->read_timestamp_dictionary();
+    auto timestamp_dict = archive_reader->get_timestamp_dictionary();
     AddTimestampConditions add_timestamp_conditions(
             timestamp_dict->get_authoritative_timestamp_tokenized_column(),
             command_line_arguments.get_search_begin_ts(),
@@ -203,7 +214,7 @@ bool search_archive(
                 SPDLOG_ERROR("Can not tokenize invalid column: \"{}\"", column);
                 return false;
             }
-            projection->add_column(ColumnDescriptor::create(descriptor_tokens));
+            projection->add_column(ColumnDescriptor::create_from_escaped_tokens(descriptor_tokens));
         }
     } catch (clp_s::TraceableException& e) {
         SPDLOG_ERROR("{}", e.what());
@@ -279,6 +290,7 @@ int main(int argc, char const* argv[]) {
 
     clp_s::TimestampPattern::init();
     mongocxx::instance const mongocxx_instance{};
+    clp::CurlGlobalInstance const curl_instance{};
 
     CommandLineArguments command_line_arguments("clp-s");
     auto parsing_result = command_line_arguments.parse_arguments(argc, argv);
@@ -293,41 +305,31 @@ int main(int argc, char const* argv[]) {
     }
 
     if (CommandLineArguments::Command::Compress == command_line_arguments.get_command()) {
-        if (false == compress(command_line_arguments)) {
+        try {
+            if (false == compress(command_line_arguments)) {
+                return 1;
+            }
+        } catch (std::exception const& e) {
+            SPDLOG_ERROR("Encountered error during compression - {}", e.what());
             return 1;
         }
     } else if (CommandLineArguments::Command::Extract == command_line_arguments.get_command()) {
-        auto const& archives_dir = command_line_arguments.get_archives_dir();
-        if (false == std::filesystem::is_directory(archives_dir)) {
-            SPDLOG_ERROR("'{}' is not a directory.", archives_dir);
-            return 1;
-        }
-
         clp_s::JsonConstructorOption option{};
         option.output_dir = command_line_arguments.get_output_dir();
         option.ordered = command_line_arguments.get_ordered_decompression();
-        option.archives_dir = archives_dir;
         option.target_ordered_chunk_size = command_line_arguments.get_target_ordered_chunk_size();
+        option.print_ordered_chunk_stats = command_line_arguments.print_ordered_chunk_stats();
+        option.network_auth = command_line_arguments.get_network_auth();
         if (false == command_line_arguments.get_mongodb_uri().empty()) {
             option.metadata_db
                     = {command_line_arguments.get_mongodb_uri(),
                        command_line_arguments.get_mongodb_collection()};
         }
-        try {
-            auto const& archive_id = command_line_arguments.get_archive_id();
-            if (false == archive_id.empty()) {
-                option.archive_id = archive_id;
-                decompress_archive(option);
-            } else {
-                for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
-                    if (false == entry.is_directory()) {
-                        // Skip non-directories
-                        continue;
-                    }
 
-                    option.archive_id = entry.path().filename();
-                    decompress_archive(option);
-                }
+        try {
+            for (auto const& archive_path : command_line_arguments.get_input_paths()) {
+                option.archive_path = archive_path;
+                decompress_archive(option);
             }
         } catch (clp_s::TraceableException& e) {
             SPDLOG_ERROR("{}", e.what());
@@ -407,12 +409,6 @@ int main(int argc, char const* argv[]) {
             return 1;
         }
 
-        auto const& archives_dir = command_line_arguments.get_archives_dir();
-        if (false == std::filesystem::is_directory(archives_dir)) {
-            SPDLOG_ERROR("'{}' is not a directory.", archives_dir);
-            return 1;
-        }
-
         int reducer_socket_fd{-1};
         if (command_line_arguments.get_output_handler_type()
             == CommandLineArguments::OutputHandlerType::Reducer)
@@ -428,37 +424,25 @@ int main(int argc, char const* argv[]) {
             }
         }
 
-        auto const& archive_id = command_line_arguments.get_archive_id();
         auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
-        if (false == archive_id.empty()) {
-            archive_reader->open(archives_dir, archive_id);
+        for (auto const& archive_path : command_line_arguments.get_input_paths()) {
+            try {
+                archive_reader->open(archive_path, command_line_arguments.get_network_auth());
+            } catch (std::exception const& e) {
+                SPDLOG_ERROR("Failed to open archive - {}", e.what());
+                return 1;
+            }
             if (false
-                == search_archive(command_line_arguments, archive_reader, expr, reducer_socket_fd))
+                == search_archive(
+                        command_line_arguments,
+                        archive_reader,
+                        expr->copy(),
+                        reducer_socket_fd
+                ))
             {
                 return 1;
             }
             archive_reader->close();
-        } else {
-            for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
-                if (false == entry.is_directory()) {
-                    // Skip non-directories
-                    continue;
-                }
-
-                auto const archive_id = entry.path().filename().string();
-                archive_reader->open(archives_dir, archive_id);
-                if (false
-                    == search_archive(
-                            command_line_arguments,
-                            archive_reader,
-                            expr->copy(),
-                            reducer_socket_fd
-                    ))
-                {
-                    return 1;
-                }
-                archive_reader->close();
-            }
         }
     }
 

@@ -4,7 +4,6 @@
 #include <string_view>
 #include <utility>
 
-#include <boost/filesystem.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
@@ -122,9 +121,9 @@ public:
      * @return the epoch time corresponding to the string timestamp
      */
     epochtime_t ingest_timestamp_entry(
-            std::string const& key,
+            std::string_view key,
             int32_t node_id,
-            std::string const& timestamp,
+            std::string_view timestamp,
             uint64_t& pattern_id
     ) {
         return m_timestamp_dict.ingest_entry(key, node_id, timestamp, pattern_id);
@@ -136,11 +135,11 @@ public:
      * @param node_id
      * @param timestamp
      */
-    void ingest_timestamp_entry(std::string const& key, int32_t node_id, double timestamp) {
+    void ingest_timestamp_entry(std::string_view key, int32_t node_id, double timestamp) {
         m_timestamp_dict.ingest_entry(key, node_id, timestamp);
     }
 
-    void ingest_timestamp_entry(std::string const& key, int32_t node_id, int64_t timestamp) {
+    void ingest_timestamp_entry(std::string_view key, int32_t node_id, int64_t timestamp) {
         m_timestamp_dict.ingest_entry(key, node_id, timestamp);
     }
 
@@ -181,7 +180,7 @@ private:
     void write_single_file_archive(std::vector<ArchiveFileInfo> const& files);
 
     /**
-     * Writes the metadata section of the single file archive
+     * Writes the metadata section of an archive.
      * @param archive_writer
      * @param files
      */
@@ -211,15 +210,6 @@ private:
      * Prints the archive's statistics (id, uncompressed size, compressed size, etc.)
      */
     void print_archive_stats();
-
-    /**
-     * Write the timestamp dictionary as a dedicated file for multi-file archives.
-     *
-     * Note: the timestamp dictionary will be moved into the metadata region of multi-file archives
-     * in a follow-up PR.
-     * @return the compressed size of the Timestamp Dictionary in bytes
-     */
-    size_t write_timestamp_dict();
 
     static constexpr size_t cReadBlockSize = 4 * 1024;
 

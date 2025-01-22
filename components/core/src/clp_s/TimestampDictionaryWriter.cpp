@@ -1,6 +1,8 @@
 #include "TimestampDictionaryWriter.hpp"
 
+#include <cstdint>
 #include <sstream>
+#include <string_view>
 
 #include "Utils.hpp"
 
@@ -42,9 +44,9 @@ uint64_t TimestampDictionaryWriter::get_pattern_id(TimestampPattern const* patte
 }
 
 epochtime_t TimestampDictionaryWriter::ingest_entry(
-        std::string const& key,
+        std::string_view key,
         int32_t node_id,
-        std::string const& timestamp,
+        std::string_view timestamp,
         uint64_t& pattern_id
 ) {
     epochtime_t ret;
@@ -87,11 +89,8 @@ epochtime_t TimestampDictionaryWriter::ingest_entry(
     return ret;
 }
 
-void TimestampDictionaryWriter::ingest_entry(
-        std::string const& key,
-        int32_t node_id,
-        double timestamp
-) {
+void
+TimestampDictionaryWriter::ingest_entry(std::string_view key, int32_t node_id, double timestamp) {
     auto entry = m_column_id_to_range.find(node_id);
     if (entry == m_column_id_to_range.end()) {
         TimestampEntry new_entry(key);
@@ -102,11 +101,8 @@ void TimestampDictionaryWriter::ingest_entry(
     }
 }
 
-void TimestampDictionaryWriter::ingest_entry(
-        std::string const& key,
-        int32_t node_id,
-        int64_t timestamp
-) {
+void
+TimestampDictionaryWriter::ingest_entry(std::string_view key, int32_t node_id, int64_t timestamp) {
     auto entry = m_column_id_to_range.find(node_id);
     if (entry == m_column_id_to_range.end()) {
         TimestampEntry new_entry(key);
