@@ -150,7 +150,7 @@ public:
 
     std::vector<SchemaNode> const& get_nodes() const { return m_nodes; }
 
-    std::vector<std::pair<std::string, NodeType>> const& get_fields(std::string const& archives_dir);
+    std::vector<std::pair<std::string, int>> const& get_fields(std::string const& archives_dir);
 
     /**
      * Write the contents of the SchemaTree to the schema tree file
@@ -187,7 +187,7 @@ private:
     absl::flat_hash_map<std::tuple<int32_t, std::string_view const, NodeType>, int32_t> m_node_map;
     int32_t m_object_subtree_id{-1};
     int32_t m_metadata_subtree_id{-1};
-    std::vector<std::pair<std::string, NodeType>> m_fields;
+    std::vector<std::pair<std::string, int>> m_fields;
 
     std::stack<std::string> m_dfs_stack;
     void collect_field_paths(SchemaNode const& node);

@@ -6,6 +6,7 @@
 #include <vector>
 #include <spdlog.h>
 
+#include <iostream>
 #include "archive_constants.hpp"
 #include "FileWriter.hpp"
 #include "ZstdCompressor.hpp"
@@ -62,7 +63,7 @@ void SchemaTree::collect_field_paths(SchemaNode const& node) {
         std::string field = node.get_key_name();
         std::stack<std::string> temp_stack;
         while (false == m_dfs_stack.empty()) {
-            std::string_view mid_field = m_dfs_stack.top();
+            std::string mid_field = m_dfs_stack.top();
             m_dfs_stack.pop();
             temp_stack.push(std::string{mid_field});
             field = fmt::format("{}.{}", mid_field, field);
@@ -71,7 +72,7 @@ void SchemaTree::collect_field_paths(SchemaNode const& node) {
             m_dfs_stack.push(temp_stack.top());
             temp_stack.pop();
         }
-        m_fields.push_back(std::pair<std::string, NodeType>{field, node.get_type()});
+	m_fields.emplace_back(field, static_cast<int>(node.get_type()));
     } else {
         if (this->get_root_node_id() != node.get_id()) {
              m_dfs_stack.push(node.get_key_name());
@@ -85,7 +86,7 @@ void SchemaTree::collect_field_paths(SchemaNode const& node) {
     }
 }
 
-std::vector<std::pair<std::string, NodeType>> const& SchemaTree::get_fields(std::string const& archives_dir) {
+std::vector<std::pair<std::string, int>> const& SchemaTree::get_fields(std::string const& archives_dir) {
     m_fields.clear();
     collect_field_paths(m_nodes[0]);
     while (false == m_dfs_stack.empty()) {

@@ -344,7 +344,7 @@ int main(int argc, char const* argv[]) {
         }
         auto const& archive_id = command_line_arguments.get_archive_id();
         auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
-        std::set<std::pair<std::string, clp_s::NodeType>> mst_field_set;
+        std::set<std::pair<std::string, int>> mst_field_set;
         for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
             if (false == entry.is_directory()) {
                 // Skip non-directories
@@ -366,25 +366,30 @@ int main(int argc, char const* argv[]) {
         );
         field_compressor.open(field_writer, clp_s::cDefaultCompressionLevel);
 
-        std::cout << "size: " << mst_field_set.size();
+        std::cout << "size: " << mst_field_set.size() << std::endl;
         field_compressor.write_numeric_value(mst_field_set.size());
         for (auto const& field : mst_field_set) {
+            if (0 > field.second || 10 <= field.second || 5 == field.second || 9 == field.second) {
+	        continue;
+	    }
             field_compressor.write_numeric_value(field.first.size());
             field_compressor.write_string(field.first);
-            field_compressor.write_numeric_value(field.second);
+            field_compressor.write_numeric_value(static_cast<clp_s::NodeType>(field.second));
             std::cout << field.first << ":";
             std::string type = [field]() -> std::string {
                 switch (field.second) {
-                    case clp_s::NodeType::Integer: return "Integer";
-                    case clp_s::NodeType::Float: return "Float";
-                    case clp_s::NodeType::ClpString: return "ClpString";
-                    case clp_s::NodeType::Boolean: return "Boolean";
-                    case clp_s::NodeType::Object: return "Object";
-                    case clp_s::NodeType::UnstructuredArray: return "UnstructuredArray";
-                    case clp_s::NodeType::NullValue: return "NullValue";
-                    case clp_s::NodeType::DateString: return "DateString";
-                    case clp_s::NodeType::StructuredArray: return "StructuredArray";
-                    default: return "Unknown";
+                    case 0: return "Integer";
+                    case 1: return "Float";
+                    case 2: return "ClpString";
+                    case 3: return "VarString";
+                    case 4: return "Boolean";
+                    case 5: return "Object";
+                    case 6: return "UnstructuredArray";
+                    case 7: return "NullValue";
+                    case 8: return "DateString";
+                    case 9: return "StructuredArray";
+		    case 10: return "Unknown";
+                    default: return "Error!!!!";
                 }
             }();
             std::cout << type << std::endl;
