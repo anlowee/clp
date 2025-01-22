@@ -334,11 +334,8 @@ int main(int argc, char const* argv[]) {
             return 1;
         }
     } else if (CommandLineArguments::Command::Inspect == command_line_arguments.get_command()) {
-        clp_s::InputOption local_input_config;
-        local_input_config.source = clp_s::InputSource::Filesystem;
         auto const& archives_dir = command_line_arguments.get_archives_dir();
-        if (clp_s::InputSource::Filesystem == input_config.source
-            && false == std::filesystem::is_directory(archives_dir)) {
+        if (false == std::filesystem::is_directory(archives_dir)) {
             SPDLOG_ERROR("'{}' is not a directory", archives_dir);
             return 1;
         }
@@ -346,13 +343,13 @@ int main(int argc, char const* argv[]) {
         auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
         std::set<std::pair<std::string, int>> mst_field_set;
         for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
-            if (false == entry.is_directory()) {
-                // Skip non-directories
+            if (entry.is_directory()) {
+                // Skip directories, now the uuid is the sfa
                 continue;
             }
 
             auto const archive_id = entry.path().filename().string();
-            archive_reader->open(archives_dir, archive_id, input_config);
+	    archive_reader->open(clp_s::Path{.source{InputSource::Filesystem}, .path{entry.path().string()}, NetworkAuth{});
             auto schema_tree = archive_reader->get_schema_tree();
             auto fields = schema_tree->get_fields(archives_dir);
             mst_field_set.insert(fields.begin(), fields.end());

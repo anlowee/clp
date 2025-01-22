@@ -60,7 +60,7 @@ int32_t SchemaTree::get_metadata_field_id(std::string_view const field_name) {
 void SchemaTree::collect_field_paths(SchemaNode const& node) {
     auto& children_ids = node.get_children_ids();
     if (children_ids.empty()) {
-        std::string field = node.get_key_name();
+        std::string field{node.get_key_name()};
         std::stack<std::string> temp_stack;
         while (false == m_dfs_stack.empty()) {
             std::string mid_field = m_dfs_stack.top();
@@ -74,13 +74,13 @@ void SchemaTree::collect_field_paths(SchemaNode const& node) {
         }
 	m_fields.emplace_back(field, static_cast<int>(node.get_type()));
     } else {
-        if (this->get_root_node_id() != node.get_id()) {
-             m_dfs_stack.push(node.get_key_name());
+        if (this->get_object_subtree_node_id() != node.get_id()) {
+             m_dfs_stack.push(std::string(node.get_key_name()));
         }
         for (auto const& id : children_ids) {
             collect_field_paths(this->get_node(id));
         }
-        if (this->get_root_node_id() != node.get_id()) {
+        if (this->get_object_subtree_node_id() != node.get_id()) {
              m_dfs_stack.pop();
         }
     }
