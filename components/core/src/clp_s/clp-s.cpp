@@ -336,13 +336,9 @@ int main(int argc, char const* argv[]) {
             return 1;
         }
     } else if (CommandLineArguments::Command::Inspect == command_line_arguments.get_command()) {
-        auto const& archives_dir = command_line_arguments.get_archives_dir();
-        if (false == std::filesystem::is_directory(archives_dir)) {
-            SPDLOG_ERROR("'{}' is not a directory", archives_dir);
-            return 1;
-        }
-        auto const& archive_id = command_line_arguments.get_archive_id();
-        auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
+	auto const& archives_dir = command_line_arguments.get_input_paths()[0].path;
+        SPDLOG_INFO("The archive is {}", archives_dir);
+	auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
         std::set<std::pair<std::string, int>> mst_field_set;
         for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
             if (entry.is_directory()) {
@@ -350,8 +346,12 @@ int main(int argc, char const* argv[]) {
                 continue;
             }
 
-            auto const archive_id = entry.path().filename().string();
-	    archive_reader->open(clp_s::Path{.source{InputSource::Filesystem}, .path{entry.path().string()}, NetworkAuth{});
+	    if (entry.path().filename() == "schema_tree") {
+		// Skip entries named "schema_tree"
+	        continue;
+            }
+
+	    archive_reader->open(clp_s::Path{.source{clp_s::InputSource::Filesystem}, .path{entry.path().string()}}, clp_s::NetworkAuthOption{});
             auto schema_tree = archive_reader->get_schema_tree();
             auto fields = schema_tree->get_fields(archives_dir);
             mst_field_set.insert(fields.begin(), fields.end());
