@@ -336,9 +336,9 @@ int main(int argc, char const* argv[]) {
             return 1;
         }
     } else if (CommandLineArguments::Command::Inspect == command_line_arguments.get_command()) {
-	auto const& archives_dir = command_line_arguments.get_input_paths()[0].path;
+	    auto const& archives_dir = command_line_arguments.get_archives_dir();
         SPDLOG_INFO("The archive is {}", archives_dir);
-	auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
+	    auto archive_reader = std::make_shared<clp_s::ArchiveReader>();
         std::set<std::pair<std::string, int>> mst_field_set;
         for (auto const& entry : std::filesystem::directory_iterator(archives_dir)) {
             if (entry.is_directory()) {

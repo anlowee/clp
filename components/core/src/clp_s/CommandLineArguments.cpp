@@ -831,6 +831,27 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
                         "The --count-by-time and --count options are mutually exclusive."
                 );
             }
+        } else if ((char)Command::Inspect == command_input) {
+            po::options_description inspect_options;
+            inspect_options.add_options()(
+                "archives-dir",
+                po::value<std::string>(&m_archives_dir)->value_name("DIR"),
+                "The directory containing the archives"
+            );
+            po::positional_options_description positional_options;
+            positional_options.add("archives-dir", 1);
+
+            std::vector<std::string> unrecognized_options
+                = po::collect_unrecognized(parsed.options, po::include_positional);
+            unrecognized_options.erase(unrecognized_options.begin());
+            po::store(
+                po::command_line_parser(unrecognized_options)
+                    .options(inspect_options)
+                    .positional(positional_options)
+                    .run(),
+                parsed_command_line_options
+            );
+            po::notify(parsed_command_line_options);
         }
     } catch (std::exception& e) {
         SPDLOG_ERROR("{}", e.what());

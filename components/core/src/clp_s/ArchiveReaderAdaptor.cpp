@@ -218,6 +218,7 @@ std::unique_ptr<clp::ReaderInterface> ArchiveReaderAdaptor::checkout_reader_for_
 std::unique_ptr<clp::ReaderInterface> ArchiveReaderAdaptor::checkout_reader_for_sfa_section(
         std::string_view section
 ) {
+    SPDLOG_INFO("Section name: {}", section);
     auto it = std::find_if(
             m_archive_file_info.files.begin(),
             m_archive_file_info.files.end(),
