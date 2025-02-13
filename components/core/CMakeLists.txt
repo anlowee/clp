@@ -127,6 +127,7 @@ if(CLP_USE_STATIC_LIBS)
     # source.
     set(spdlog_USE_STATIC_LIBS ON)
 endif()
+set(SPDLOG_FMT_EXTERNAL ON)
 find_package(spdlog 1.9.2 REQUIRED)
 if(spdlog_FOUND)
     message(STATUS "Found spdlog ${spdlog_VERSION}")
