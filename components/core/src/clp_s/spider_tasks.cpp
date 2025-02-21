@@ -33,7 +33,7 @@ std::string get_upload_name_from_path(std::filesystem::path archive_path) {
     std::string archive_name = archive_path.stem().string();
     clp_s::ArchiveReader reader;
     auto path
-            = clp_s::Path{.path = archive_path.string(), .source = clp_s::InputSource::Filesystem};
+            = clp_s::Path{.source = clp_s::InputSource::Filesystem, .path = archive_path.string()};
     reader.open(path, clp_s::NetworkAuthOption{});
     auto timestamp_dict = reader.get_timestamp_dictionary();
     auto it = timestamp_dict->tokenized_column_to_range_begin();
