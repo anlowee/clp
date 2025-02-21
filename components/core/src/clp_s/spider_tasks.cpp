@@ -32,8 +32,9 @@ std::string get_upload_name_from_path(std::filesystem::path archive_path) {
     std::string postfix = "_0_" + std::to_string(clp_s::cEpochTimeMax);
     std::string archive_name = archive_path.stem().string();
     clp_s::ArchiveReader reader;
-    reader.open(clp_s::Path{.path = archive_path.string(), .source = clp_s::InputSource::Filesystem}
-    );
+    auto path
+            = clp_s::Path{.path = archive_path.string(), .source = clp_s::InputSource::Filesystem};
+    reader.open(path, clp_s::NetworkAuthOption{});
     auto timestamp_dict = reader.get_timestamp_dictionary();
     auto it = timestamp_dict->tokenized_column_to_range_begin();
     if (timestamp_dict->tokenized_column_to_range_end() != it) {
