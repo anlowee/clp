@@ -19,10 +19,31 @@
 #include "../clp/aws/AwsAuthenticationSigner.hpp"
 #include "../clp/CurlEasyHandle.hpp"
 #include "../clp/CurlGlobalInstance.hpp"
+#include "ArchiveReader.hpp"
 #include "CommandLineArguments.hpp"
+#include "Defs.hpp"
 #include "InputConfig.hpp"
 #include "JsonParser.hpp"
 #include "Utils.hpp"
+
+namespace {
+std::string get_upload_name_from_path(std::filesystem::path archive_path) {
+    // Extract timestamp range metadata by simply reading archive metadata
+    std::string postfix = "_0_" + std::to_string(clp_s::cEpochTimeMax);
+    std::string archive_name = archive_path.stem().string();
+    clp_s::ArchiveReader reader;
+    reader.open(clp_s::Path{.path = archive_path.string(), .source = clp_s::InputSource::Filesystem}
+    );
+    auto timestamp_dict = reader.get_timestamp_dictionary();
+    auto it = timestamp_dict->tokenized_column_to_range_begin();
+    if (timestamp_dict->tokenized_column_to_range_end() != it) {
+        auto range = it->second;
+        postfix = "_" + std::to_string(range->get_begin_timestamp()) + "_"
+                  + std::to_string(range->get_end_timestamp());
+    }
+    reader.close();
+    return archive_name + postfix;
+}
 
 bool upload_all_files_in_directory(std::string const& directory, std::string const& destination) {
     std::vector<std::string> file_paths;
@@ -70,7 +91,7 @@ bool upload_all_files_in_directory(std::string const& directory, std::string con
         if (unsigned_url_str.back() != '/') {
             unsigned_url_str += '/';
         }
-        unsigned_url_str += std::filesystem::path(path).stem().string();
+        unsigned_url_str += get_upload_name_from_path(std::filesystem::path(path));
 
         std::string presigned_url;
         try {
@@ -109,6 +130,7 @@ void cleanup_generated_archives(std::string archives_path) {
         SPDLOG_ERROR("Failed to clean up archives path: ({}) {}", ec.value(), ec.message());
     }
 }
+}  // namespace
 
 // Task function implementation
 int
