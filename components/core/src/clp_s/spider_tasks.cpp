@@ -134,8 +134,12 @@ void cleanup_generated_archives(std::string archives_path) {
 }  // namespace
 
 // Task function implementation
-int
-compress(spider::TaskContext& context, std::vector<std::string> s3_paths, std::string destination) {
+int compress(
+        spider::TaskContext& context,
+        std::vector<std::string> s3_paths,
+        std::string destination,
+        std::string timestamp_key
+) {
     auto stderr_logger = spdlog::stderr_logger_st("stderr");
     spdlog::set_default_logger(stderr_logger);
     spdlog::set_pattern("%Y-%m-%dT%H:%M:%S.%e%z [%l] %v");
@@ -150,8 +154,7 @@ compress(spider::TaskContext& context, std::vector<std::string> s3_paths, std::s
     }
 
     option.input_file_type = clp_s::FileType::KeyValueIr;
-    option.timestamp_key
-            = "";  // Note: we don't support timestamp key for irv2 ingestion at the moment
+    option.timestamp_key = timestamp_key;
     option.archives_dir = fmt::format("/tmp/{}/", boost::uuids::to_string(context.get_id()));
     option.target_encoded_size = 512 * 1024 * 1024;  // 512 MiB
     option.max_document_size = 512 * 1024 * 1024;  // 512 MiB

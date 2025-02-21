@@ -37,9 +37,9 @@ private:
 // NOLINTBEGIN(bugprone-exception-escape)
 auto main(int argc, char const* argv[]) -> int {
     // Parse the storage backend URL from the command line arguments
-    if (argc != 5) {
+    if (argc != 6) {
         std::cerr << "Usage: ./client <storage-backend-url> <paths-file> <destination-url> "
-                     "<compression-batch-size>\n";
+                     "<timestamp-key> <compression-batch-size>\n";
         return 1;
     }
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -65,7 +65,13 @@ auto main(int argc, char const* argv[]) -> int {
         return 1;
     }
 
-    int const batch_size = std::atoi(argv[4]);
+    std::string const timestamp_key{argv[4]};
+    if (timestamp_key.empty()) {
+        std::cerr << "timestamp-key cannot be empty.\n";
+        return 1;
+    }
+
+    int const batch_size = std::atoi(argv[5]);
     if (batch_size <= 0) {
         std::cerr << "batch-size must be > 0\n";
         return 1;
@@ -87,7 +93,7 @@ auto main(int argc, char const* argv[]) -> int {
 
         std::cerr << ingestion_urls.size() << " " << destination_url << '\n';
 
-        jobs.emplace_back(driver.start(&compress, ingestion_urls, destination_url));
+        jobs.emplace_back(driver.start(&compress, ingestion_urls, destination_url, timestamp_key));
     }
 
     // Wait for the jobs to complete
