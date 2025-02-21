@@ -16,6 +16,7 @@ lib_install_scripts_dir=$script_dir/..
 "$lib_install_scripts_dir"/libarchive.sh 3.5.1
 "$lib_install_scripts_dir"/liblzma.sh 5.4.6
 "$lib_install_scripts_dir"/lz4.sh 1.8.2
+"$lib_install_scripts_dir"/mariadb-connector-cpp.sh 1.1.5
 "$lib_install_scripts_dir"/mongocxx.sh 3.10.2
 "$lib_install_scripts_dir"/msgpack.sh 7.0.0
 "$lib_install_scripts_dir"/spdlog.sh 1.9.2

@@ -71,7 +71,7 @@ fi
 cd ${extracted_dir}
 mkdir -p build
 cd build
-cmake ../
+cmake ../ -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DSPDLOG_FMT_EXTERNAL=ON
 make -j${num_cpus}
 
 # Check if checkinstall is installed

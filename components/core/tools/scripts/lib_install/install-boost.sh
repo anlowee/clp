@@ -33,9 +33,9 @@ curl -fsSL https://archives.boost.io/release/${version}/source/${tar_filename} -
 tar xzf ${tar_filename}
 cd boost_${version_with_underscores}
 
-# Build
-./bootstrap.sh --with-libraries=filesystem,iostreams,program_options,regex,system,url
-./b2 -j${num_cpus}
+# Build with .a as position independent code
+./bootstrap.sh --with-libraries=filesystem,iostreams,process,program_options,regex,system,url
+./b2 -j${num_cpus} cxxflags=-fPIC cflags=-fPIC
 
 # Install
 if [ ${EUID:-$(id -u)} -ne 0 ] ; then

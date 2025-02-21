@@ -1,6 +1,6 @@
-add_subdirectory(indexer)
-add_subdirectory(search/kql)
-add_subdirectory(search/sql)
+#add_subdirectory(indexer)
+#add_subdirectory(search/kql)
+#add_subdirectory(search/sql)
 
 set(
         CLP_SOURCES
@@ -97,8 +97,6 @@ set(
         ColumnReader.hpp
         ColumnWriter.cpp
         ColumnWriter.hpp
-        CommandLineArguments.cpp
-        CommandLineArguments.hpp
         Compressor.hpp
         Decompressor.hpp
         Defs.hpp
@@ -238,35 +236,103 @@ set(
         ../reducer/types.hpp
 )
 
-add_executable(
-        clp-s
-        clp-s.cpp
-        ${CLP_SOURCES}
-        ${CLP_S_SOURCES}
-        ${CLP_S_SEARCH_SOURCES}
-        ${REDUCER_SOURCES}
+#add_executable(
+#        clp-s
+#        clp-s.cpp
+#        CommandLineArguments.cpp
+#        CommandLineArguments.hpp
+#        ${CLP_SOURCES}
+#        ${CLP_S_SOURCES}
+#        ${CLP_S_SEARCH_SOURCES}
+#        ${REDUCER_SOURCES}
+#)
+#target_compile_features(clp-s PRIVATE cxx_std_20)
+#target_link_libraries(
+#        clp-s
+#        PRIVATE
+#        absl::flat_hash_map
+#        Boost::iostreams Boost::program_options Boost::regex Boost::url
+#        ${CURL_LIBRARIES}
+#        clp::string_utils
+#        kql
+#        MariaDBClient::MariaDBClient
+#        ${MONGOCXX_TARGET}
+#        msgpack-cxx
+#        OpenSSL::Crypto
+#        simdjson
+#        spdlog::spdlog
+#        yaml-cpp::yaml-cpp
+#        ZStd::ZStd
+#)
+#target_include_directories(clp-s PRIVATE "${PROJECT_SOURCE_DIR}/submodules")
+#set_target_properties(
+#        clp-s
+#        PROPERTIES
+#        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
+#)
+
+# Add the tasks library
+add_library(
+    compression_tasks
+    SHARED
+    spider_tasks.cpp
+    spider_tasks.hpp
+    ${CLP_SOURCES}
+    ${CLP_S_SOURCES}
+    ${CLP_S_SEARCH_SOURCES}
+    ${REDUCER_SOURCES}
 )
-target_compile_features(clp-s PRIVATE cxx_std_20)
+
+set_target_properties(
+        compression_tasks
+        PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
+)
+
+#add_executable(
+#        spider_tasks
+#        spider_tasks.cpp
+#        ${CLP_SOURCES}
+#        ${CLP_S_SOURCES}
+#        ${CLP_S_SEARCH_SOURCES}
+#        ${REDUCER_SOURCES}
+#)
+
+target_include_directories(compression_tasks PRIVATE "${PROJECT_SOURCE_DIR}/submodules")
+
+
+# Link the Spider library to the tasks library
 target_link_libraries(
-        clp-s
+        compression_tasks
         PRIVATE
         absl::flat_hash_map
         Boost::iostreams Boost::program_options Boost::regex Boost::url
         ${CURL_LIBRARIES}
         clp::string_utils
-        kql
         MariaDBClient::MariaDBClient
         ${MONGOCXX_TARGET}
         msgpack-cxx
         OpenSSL::Crypto
         simdjson
         spdlog::spdlog
+        spider::spider
         yaml-cpp::yaml-cpp
         ZStd::ZStd
 )
-target_include_directories(clp-s PRIVATE "${PROJECT_SOURCE_DIR}/submodules")
+
+# Add the client
+add_executable(compression_client spider_compression_client.cpp)
+
 set_target_properties(
-        clp-s
+        compression_client
         PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}"
+)
+
+# Link the Spider and tasks library to the client
+target_link_libraries(
+    compression_client
+    PRIVATE
+        compression_tasks
+        spider::spider
 )

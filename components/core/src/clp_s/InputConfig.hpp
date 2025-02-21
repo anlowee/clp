@@ -13,6 +13,11 @@ constexpr char cAwsAccessKeyIdEnvVar[] = "AWS_ACCESS_KEY_ID";
 constexpr char cAwsSecretAccessKeyEnvVar[] = "AWS_SECRET_ACCESS_KEY";
 constexpr char cAwsSessionTokenEnvVar[] = "AWS_SESSION_TOKEN";
 
+enum class FileType : uint8_t {
+    Json = 0,
+    KeyValueIr
+};
+
 /**
  * Enum class defining the source of a resource.
  */
