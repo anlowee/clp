@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -110,10 +111,28 @@ public:
         return IRErrorCode::IRErrorCode_Success;
     }
 
+    /**
+     * @param is_auto_generated
+     * @param schema_tree_node_locator
+     * @param schema_tree
+     * @return IRErrorCode::IRErrorCode_Success on success.
+     * @return IRErrorCode::IRErrorCode_Decode_Error if the node specified by the locator doesn't
+     * exist in the corresponding schema tree.
+     * @return IRErrorCode::IRErrorCode_Corrupted_IR if the node specified by the locator is not the
+     * node that was last inserted into the corresponding schema tree.
+     */
     [[nodiscard]] static auto handle_schema_tree_node_insertion(
             [[maybe_unused]] bool is_auto_generated,
-            [[maybe_unused]] clp::ffi::SchemaTree::NodeLocator schema_tree_node_locator
+            [[maybe_unused]] clp::ffi::SchemaTree::NodeLocator schema_tree_node_locator,
+            [[maybe_unused]] std::shared_ptr<clp::ffi::SchemaTree const> const& schema_tree
     ) -> IRErrorCode {
+        auto const optional_node_id{schema_tree->try_get_node_id(schema_tree_node_locator)};
+        if (false == optional_node_id.has_value()) {
+            return IRErrorCode::IRErrorCode_Decode_Error;
+        }
+        if (optional_node_id.value() != schema_tree->get_size() - 1) {
+            return IRErrorCode::IRErrorCode_Corrupted_IR;
+        }
         return IRErrorCode::IRErrorCode_Success;
     }
 
@@ -1493,4 +1512,24 @@ TEMPLATE_TEST_CASE(
             map_with_invalid_submap
     };
     REQUIRE(assert_invalid_serialization(array_with_invalid_submap));
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEMPLATE_TEST_CASE(
+        "ffi_ir_stream_Serializer_serialize_invalid_user_defined_metadata",
+        "[clp][ffi][ir_stream][Serializer]",
+        four_byte_encoded_variable_t,
+        eight_byte_encoded_variable_t
+) {
+    auto invalid_user_defined_metadata = GENERATE(
+            nlohmann::json(std::string{"str"}),
+            nlohmann::json(int{0}),
+            nlohmann::json(double{0.0}),
+            nlohmann::json(true),
+            nlohmann::json(nullptr),
+            nlohmann::json(vector<int>{0, 1, 2})
+    );
+    auto const serializer_result{Serializer<TestType>::create(invalid_user_defined_metadata)};
+    REQUIRE(serializer_result.has_error());
+    REQUIRE((std::errc::protocol_not_supported == serializer_result.error()));
 }

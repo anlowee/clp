@@ -44,8 +44,10 @@ public:
      * @return A result containing the deserializer or an error code indicating the failure:
      * - std::errc::result_out_of_range if the IR stream is truncated
      * - std::errc::protocol_error if the IR stream is corrupted
-     * - std::errc::protocol_not_supported if the IR stream contains an unsupported metadata format
-     *   or uses an unsupported version
+     * - std::errc::protocol_not_supported if either:
+     *   - the IR stream contains an unsupported metadata format;
+     *   - the IR stream's version is unsupported;
+     *   - or the IR stream's user-defined metadata is not a JSON object.
      */
     [[nodiscard]] static auto create(ReaderInterface& reader, IrUnitHandler ir_unit_handler)
             -> OUTCOME_V2_NAMESPACE::std_result<Deserializer>;
@@ -168,6 +170,12 @@ auto Deserializer<IrUnitHandler>::create(ReaderInterface& reader, IrUnitHandler 
         return std::errc::protocol_not_supported;
     }
 
+    if (metadata_json.contains(cProtocol::Metadata::UserDefinedMetadataKey)
+        && false == metadata_json.at(cProtocol::Metadata::UserDefinedMetadataKey).is_object())
+    {
+        return std::errc::protocol_not_supported;
+    }
+
     return Deserializer{std::move(ir_unit_handler), std::move(metadata_json)};
 }
 
@@ -228,16 +236,17 @@ auto Deserializer<IrUnitHandler>::deserialize_next_ir_unit(ReaderInterface& read
                 return std::errc::protocol_error;
             }
 
+            std::ignore = schema_tree_to_insert->insert_node(node_locator);
+
             if (auto const err{m_ir_unit_handler.handle_schema_tree_node_insertion(
                         is_auto_generated,
-                        node_locator
+                        node_locator,
+                        schema_tree_to_insert
                 )};
                 IRErrorCode::IRErrorCode_Success != err)
             {
                 return ir_error_code_to_errc(err);
             }
-
-            std::ignore = schema_tree_to_insert->insert_node(node_locator);
             break;
         }
 

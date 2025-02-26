@@ -40,7 +40,6 @@
 #include "search/Projection.hpp"
 #include "search/SchemaMatch.hpp"
 #include "TimestampPattern.hpp"
-#include "TraceableException.hpp"
 #include "Utils.hpp"
 
 using namespace clp_s::search;
@@ -216,7 +215,7 @@ bool search_archive(
             }
             projection->add_column(ColumnDescriptor::create_from_escaped_tokens(descriptor_tokens));
         }
-    } catch (clp_s::TraceableException& e) {
+    } catch (std::exception const& e) {
         SPDLOG_ERROR("{}", e.what());
         return false;
     }
@@ -260,7 +259,7 @@ bool search_archive(
                 SPDLOG_ERROR("Unhandled OutputHandlerType.");
                 return false;
         }
-    } catch (clp_s::TraceableException& e) {
+    } catch (std::exception const& e) {
         SPDLOG_ERROR("Failed to create output handler - {}", e.what());
         return false;
     }
@@ -331,8 +330,8 @@ int main(int argc, char const* argv[]) {
                 option.archive_path = archive_path;
                 decompress_archive(option);
             }
-        } catch (clp_s::TraceableException& e) {
-            SPDLOG_ERROR("{}", e.what());
+        } catch (std::exception const& e) {
+            SPDLOG_ERROR("Encountered error during decompression - {}", e.what());
             return 1;
         }
     } else if (CommandLineArguments::Command::Inspect == command_line_arguments.get_command()) {

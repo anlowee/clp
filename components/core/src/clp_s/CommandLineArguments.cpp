@@ -275,7 +275,7 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
                         ->default_value(auth),
                     "Type of authentication required for network requests (s3 | none). Authentication"
                     " with s3 requires the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment"
-                    " variables."
+                    " variables, and optionally the AWS_SESSION_TOKEN environment variable."
             );
             // clang-format on
 
@@ -343,14 +343,6 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
                     SPDLOG_ERROR(
                             "Invalid combination of arguments; --file-type {} and "
                             "--structurize-arrays can't be used together",
-                            cKeyValueIrFileType
-                    );
-                    return ParsingResult::Failure;
-                }
-                if (false == m_timestamp_key.empty()) {
-                    SPDLOG_ERROR(
-                            "Invalid combination of arguments; --file-type {} and "
-                            "--timestamp-key can't be used together",
                             cKeyValueIrFileType
                     );
                     return ParsingResult::Failure;
@@ -429,7 +421,7 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
                         ->default_value(auth),
                     "Type of authentication required for network requests (s3 | none). Authentication"
                     " with s3 requires the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment"
-                    " variables."
+                    " variables, and optionally the AWS_SESSION_TOKEN environment variable."
             );
             // clang-format on
             extraction_options.add(decompression_options);
@@ -582,7 +574,7 @@ CommandLineArguments::parse_arguments(int argc, char const** argv) {
                     ->default_value(auth),
                 "Type of authentication required for network requests (s3 | none). Authentication"
                 " with s3 requires the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment"
-                " variables."
+                " variables, and optionally the AWS_SESSION_TOKEN environment variable."
             );
             // clang-format on
             search_options.add(match_options);
