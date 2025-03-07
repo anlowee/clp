@@ -275,7 +275,7 @@ set(
 add_library(
     compression_tasks
     SHARED
-    spider_tasks.cpp
+        spider_tasks.cpp
     spider_tasks.hpp
     ${CLP_SOURCES}
     ${CLP_S_SOURCES}
@@ -321,7 +321,8 @@ target_link_libraries(
 )
 
 # Add the client
-add_executable(compression_client spider_compression_client.cpp)
+add_executable(compression_client
+        spider_compression_client.cpp)
 
 set_target_properties(
         compression_client

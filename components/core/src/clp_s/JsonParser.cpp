@@ -459,7 +459,7 @@ void JsonParser::parse_line(ondemand::value line, int32_t parent_node_id, std::s
     while (false == object_stack.empty());
 }
 
-bool JsonParser::parse() {
+bool JsonParser::parse(std::vector<std::string>* parsed_paths) {
     for (auto const& path : m_input_paths) {
         auto reader{ReaderUtils::try_create_reader(path, m_network_auth)};
         if (nullptr == reader) {
@@ -582,6 +582,10 @@ bool JsonParser::parse() {
         if (check_and_log_curl_error(path, reader)) {
             m_archive_writer->close();
             return false;
+        }
+
+        if (parsed_paths) {
+            parsed_paths->emplace_back(path.path);
         }
     }
     return true;
@@ -835,7 +839,7 @@ void JsonParser::parse_kv_log_event(KeyValuePairLogEvent const& kv) {
     m_archive_writer->append_message(current_schema_id, m_current_schema, m_current_parsed_message);
 }
 
-auto JsonParser::parse_from_ir() -> bool {
+auto JsonParser::parse_from_ir(std::vector<std::string>* parsed_paths) -> bool {
     constexpr size_t cDecompressorReadBufferCapacity{64 * 1024};  // 64 KB
     for (auto const& path : m_input_paths) {
         auto reader{ReaderUtils::try_create_reader(path, m_network_auth)};
@@ -945,6 +949,9 @@ auto JsonParser::parse_from_ir() -> bool {
         curr_pos = decompressor.get_pos();
         m_archive_writer->increment_uncompressed_size(curr_pos - last_pos);
         decompressor.close();
+        if (parsed_paths) {
+            parsed_paths->emplace_back(path.path);
+        }
     }
     return true;
 }

@@ -75,13 +75,13 @@ public:
      * Parses the JSON log messages and store the parsed data in the archive.
      * @return whether the JSON was parsed succesfully
      */
-    [[nodiscard]] bool parse();
+    [[nodiscard]] bool parse(std::vector<std::string>* parsed_paths = nullptr);
 
     /**
      * Parses the Key Value IR Stream and stores the data in the archive.
      * @return whether the IR Stream was parsed successfully
      */
-    [[nodiscard]] auto parse_from_ir() -> bool;
+    [[nodiscard]] auto parse_from_ir(std::vector<std::string>* parsed_paths = nullptr) -> bool;
 
     /**
      * Writes the metadata and archive data to disk.
