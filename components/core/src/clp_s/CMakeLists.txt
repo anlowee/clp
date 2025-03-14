@@ -318,6 +318,7 @@ target_link_libraries(
         spider::spider
         yaml-cpp::yaml-cpp
         ZStd::ZStd
+        pugixml
 )
 
 # Add the client
