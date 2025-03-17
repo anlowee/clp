@@ -324,6 +324,8 @@ target_link_libraries(
 # Add the client
 add_executable(compression_client spider_compression_client.cpp)
 
+target_include_directories(compression_client PRIVATE "${PROJECT_SOURCE_DIR}/submodules")
+
 set_target_properties(
         compression_client
         PROPERTIES
@@ -336,4 +338,18 @@ target_link_libraries(
     PRIVATE
         compression_tasks
         spider::spider
+        absl::flat_hash_map
+        Boost::iostreams Boost::program_options Boost::regex Boost::url
+        ${CURL_LIBRARIES}
+        clp::string_utils
+        MariaDBClient::MariaDBClient
+        ${MONGOCXX_TARGET}
+        msgpack-cxx
+        OpenSSL::Crypto
+        simdjson
+        spdlog::spdlog
+        spider::spider
+        yaml-cpp::yaml-cpp
+        ZStd::ZStd
+        pugixml
 )

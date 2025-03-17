@@ -94,6 +94,11 @@ public:
      */
     std::vector<std::string> const& get_successfully_compressed_paths() const { return m_successfully_compressed_paths; }
 
+    /**
+     * Gets the list of all paths that were compressed with running into an error.
+     */
+    std::vector<std::string> const& get_unsuccessfully_compressed_paths() const { return m_failed_compressed_paths; }
+
 private:
     /**
      * Parses a JSON line
@@ -238,6 +243,7 @@ private:
     bool m_no_archive_split{false};
 
     std::vector<std::string> m_successfully_compressed_paths;
+    std::vector<std::string> m_failed_compressed_paths;
 
     absl::flat_hash_map<std::pair<uint32_t, NodeType>, std::pair<int32_t, bool>>
             m_ir_node_to_archive_node_id_mapping;

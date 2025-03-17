@@ -13,6 +13,7 @@
 #include "PackedStreamReader.hpp"
 #include "ReaderUtils.hpp"
 #include "SchemaReader.hpp"
+#include "SingleFileArchiveDefs.hpp"
 #include "search/Projection.hpp"
 #include "TimestampDictionaryReader.hpp"
 #include "Utils.hpp"
@@ -111,6 +112,10 @@ public:
 
     std::shared_ptr<TimestampDictionaryReader> get_timestamp_dictionary() {
         return m_archive_reader_adaptor->get_timestamp_dictionary();
+    }
+
+    ArchiveHeader const& get_archive_header() {
+        return m_archive_reader_adaptor->get_header();
     }
 
     std::shared_ptr<SchemaTree> get_schema_tree() { return m_schema_tree; }

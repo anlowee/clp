@@ -486,6 +486,7 @@ bool JsonParser::parse() {
         auto reader{ReaderUtils::try_create_reader(path, m_network_auth)};
         if (nullptr == reader) {
             m_archive_writer->close();
+            m_failed_compressed_paths.emplace_back(path.path);
             return false;
         }
 
@@ -497,6 +498,7 @@ bool JsonParser::parse() {
                     path.path
             );
             m_archive_writer->close();
+            m_failed_compressed_paths.emplace_back(path.path);
             return false;
         }
 
@@ -532,6 +534,7 @@ bool JsonParser::parse() {
                         bytes_consumed_up_to_prev_record
                 );
                 m_archive_writer->close();
+                m_failed_compressed_paths.emplace_back(path.path);
                 return false;
             }
 
@@ -557,6 +560,7 @@ bool JsonParser::parse() {
                         bytes_consumed_up_to_prev_record
                 );
                 m_archive_writer->close();
+                m_failed_compressed_paths.emplace_back(path.path);
                 return false;
             }
             m_num_messages++;
@@ -591,6 +595,7 @@ bool JsonParser::parse() {
                     bytes_consumed_up_to_prev_record
             );
             m_archive_writer->close();
+            m_failed_compressed_paths.emplace_back(path.path);
             return false;
         } else if (json_file_iterator.truncated_bytes() > 0) {
             // currently don't treat truncated bytes at the end of the file as an error
@@ -603,6 +608,7 @@ bool JsonParser::parse() {
 
         if (check_and_log_curl_error(path, reader)) {
             m_archive_writer->close();
+            m_failed_compressed_paths.emplace_back(path.path);
             return false;
         }
         m_successfully_compressed_paths.emplace_back(path.path);
@@ -894,6 +900,7 @@ auto JsonParser::parse_from_ir() -> bool {
         auto reader{ReaderUtils::try_create_reader(path, m_network_auth)};
         if (nullptr == reader) {
             m_archive_writer->close();
+            m_failed_compressed_paths.emplace_back(path.path);
             return false;
         }
 
@@ -914,6 +921,7 @@ auto JsonParser::parse_from_ir() -> bool {
             decompressor.close();
             check_and_log_curl_error(path, reader);
             m_archive_writer->close();
+            m_failed_compressed_paths.emplace_back(path.path);
             return false;
         }
         auto& deserializer = deserializer_result.value();
@@ -942,6 +950,7 @@ auto JsonParser::parse_from_ir() -> bool {
                 if (check_and_log_curl_error(path, reader)) {
                     m_archive_writer->close();
                     decompressor.close();
+                    m_failed_compressed_paths.emplace_back(path.path);
                     return false;
                 } else {
                     // Treat deserialization error as end of a truncated stream
@@ -971,6 +980,7 @@ auto JsonParser::parse_from_ir() -> bool {
                     SPDLOG_ERROR("Encountered error while parsing a kv log event - {}", e.what());
                     m_archive_writer->close();
                     decompressor.close();
+                    m_failed_compressed_paths.emplace_back(path.path);
                     return false;
                 }
 
@@ -998,6 +1008,7 @@ auto JsonParser::parse_from_ir() -> bool {
                 );
                 m_archive_writer->close();
                 decompressor.close();
+                m_failed_compressed_paths.emplace_back(path.path);
                 return false;
             }
         }
