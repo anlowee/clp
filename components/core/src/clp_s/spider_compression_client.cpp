@@ -10,6 +10,7 @@
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
 
+#include "../../submodules/json/single_include/nlohmann/json.hpp"
 #include "spider_tasks.hpp"
 
 class InputFileIterator {
@@ -64,7 +65,7 @@ auto main(int argc, char const* argv[]) -> int {
     spider::Driver driver{storage_url};
 
     // Submit tasks for execution
-    std::vector<spider::Job<terrablob::CompressResult>> jobs;
+    std::vector<spider::Job<std::string>> jobs;
 
     const std::string timestamp_key{"ts"};
     const std::string topic_name{"merchant_reporting-datalake"};
@@ -95,7 +96,11 @@ auto main(int argc, char const* argv[]) -> int {
                 }
                 s3_paths.emplace_back(s3_path);
                 if (cBatchSize <= s3_paths.size()) {
-                    jobs.emplace_back(driver.start(&compress, std::move(s3_paths), timestamp_key, archives_suffix, destination_prefix));
+                    SPDLOG_DEBUG("Buffered {} paths, assign to a job to ingest", s3_paths.size());
+                    const auto input_paths = std::make_unique<terrablob::InputPaths>();
+                    input_paths->input_paths = std::move(s3_paths);
+                    nlohmann::json input_paths_json = *input_paths;
+                    jobs.emplace_back(driver.start(&compress, input_paths_json.dump(), timestamp_key, archives_suffix, destination_prefix));
                     s3_paths.clear();
                 }
             }
@@ -109,7 +114,8 @@ auto main(int argc, char const* argv[]) -> int {
             // Handle the job's success/failure
             switch (auto job_status = job.get_status()) {
                 case spider::JobStatus::Succeeded: {
-                    const auto job_result = job.get_result();
+                    // TODO: cover the case that json parsing failed
+                    const auto job_result = nlohmann::json::parse(job.get_result()).get<terrablob::CompressResult>();
                     successful_ingested_file_paths_set.insert(job_result.successful_path_strs.begin(), job_result.successful_path_strs.end());
                     failed_ingested_file_paths_set.insert(job_result.failed_path_strs.begin(), job_result.failed_path_strs.end());
                     // TODO: remove this, because we want to save it in file and upload/download to/from terrablob
@@ -117,8 +123,8 @@ auto main(int argc, char const* argv[]) -> int {
                     break;
                 }
                 case spider::JobStatus::Failed: {
-                    std::pair<std::string, std::string> const error_and_fn_name = job.get_error();
-                    SPDLOG_ERROR("Job failed in function {}-{}", error_and_fn_name.second, error_and_fn_name.first);
+                    // TODO: use spider's get_error API to customize failure handler
+                    SPDLOG_ERROR("Job failed");
                     failed = true;
                     break;
                 }

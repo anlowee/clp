@@ -341,9 +341,9 @@ std::optional<ArchiveInfo> MerchantReportingDatalakeIngester::get_archive_info_f
 }  // namespace
 
 // Task function implementation
-terrablob::CompressResult compress(
+std::string compress(
         spider::TaskContext& context,
-        std::vector<std::string> s3_paths,
+        std::string s3_paths_json_str,
         std::string timestamp_key,
         std::string archives_suffix,
         std::string destination_prefix
@@ -352,24 +352,28 @@ terrablob::CompressResult compress(
     spdlog::set_default_logger(stderr_logger);
     spdlog::set_pattern("%Y-%m-%dT%H:%M:%S.%e%z [%l] %v");
 
-    if (s3_paths.empty()) {
-        return terrablob::CompressResult{};
-    }
+    terrablob::InputPaths s3_paths = nlohmann::json::parse(s3_paths_json_str).get<terrablob::InputPaths>();
+    nlohmann::json compress_result = terrablob::CompressResult{};
 
     const auto task_id_str = boost::uuids::to_string(context.get_id());
-    SPDLOG_INFO("compress: task id: {}, number of input paths: {}, timestamp key: {}", task_id_str, s3_paths.size(), timestamp_key);
+    SPDLOG_INFO("compress: task id: {}, number of input paths: {}, timestamp key: {}", task_id_str, s3_paths.input_paths.size(), timestamp_key);
+
+    if (s3_paths.input_paths.empty()) {
+        return compress_result.dump();
+    }
 
     clp::CurlGlobalInstance const curl_global_instance;
     clp_s::TimestampPattern::init();
 
     const auto archives_suffix_with_task_id = fmt::format("{}-{}", archives_suffix, task_id_str);
 
-    return terrablob::MerchantReportingDatalakeIngester::ingest_from_terrablob_and_get_successfully_file_paths(
-        s3_paths,
+    compress_result = terrablob::MerchantReportingDatalakeIngester::ingest_from_terrablob_and_get_successfully_file_paths(
+        s3_paths.input_paths,
         timestamp_key,
         archives_suffix_with_task_id,
         destination_prefix
     );
+    return compress_result.dump();
 }
 
 // Register the task with Spider

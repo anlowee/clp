@@ -29,14 +29,22 @@ typedef struct {
         size_t archive_size;
 } ArchiveInfo;
 
-typedef struct {
+typedef struct InputPaths {
+        std::vector<std::string> input_paths;
+
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(InputPaths, input_paths)
+} InputPaths;
+
+typedef struct CompressResult {
         std::vector<std::string> successful_path_strs;
         std::vector<std::string> failed_path_strs;
         std::string archive_terrablob_path_str;
         size_t uncompressed_size;
         size_t archive_size;
 
-        MSGPACK_DEFINE(successful_path_strs, archive_terrablob_path_str, uncompressed_size, archive_size);
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(CompressResult,
+                successful_path_strs, failed_path_strs, archive_terrablob_path_str,
+                uncompressed_size, archive_size)
 } CompressResult;
 
 class MerchantReporingDatalakeMaster {
@@ -78,15 +86,15 @@ private:
 // Task function prototype
 /**
  * @param context
- * @param s3_paths vector of s3 object URLs
+ * @param s3_paths_json_str the json string of the serialized vector of s3 object URLs
  * @param timestamp_key the metadata needed by clp-s
  * @param archives_suffix the SFAs will be temporally stored at /tmp/archives-{archives_suffix}-{task_id}/
  * @param destination_prefix the SFAs will be uploaded to {destination_prefix}/yyyy/mm/dd/{min_ts}-{max_ts}.clps on terrablob
- * @return The compress result contains some useful information
+ * @return The json string of the serialized compress result contains some useful information
  */
-terrablob::CompressResult compress(
+std::string compress(
         spider::TaskContext& context,
-        std::vector<std::string> s3_paths,
+        std::string s3_paths_json_str,
         std::string timestamp_key,
         std::string archives_suffix,
         std::string destination_prefix
