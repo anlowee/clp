@@ -1,21 +1,30 @@
 #ifndef CLP_S_ARCHIVEREADER_HPP
 #define CLP_S_ARCHIVEREADER_HPP
 
+#include <cstdint>
+#include <cstdlib>
 #include <map>
-#include <set>
+#include <memory>
 #include <span>
+#include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "ArchiveReaderAdaptor.hpp"
+#include "ColumnReader.hpp"
 #include "DictionaryReader.hpp"
+#include "ErrorCode.hpp"
+#include "FileWriter.hpp"
 #include "InputConfig.hpp"
 #include "PackedStreamReader.hpp"
 #include "ReaderUtils.hpp"
 #include "SchemaReader.hpp"
+#include "SchemaTree.hpp"
 #include "search/Projection.hpp"
 #include "TimestampDictionaryReader.hpp"
-#include "Utils.hpp"
+#include "TraceableException.hpp"
+#include "ZstdDecompressor.hpp"
 
 namespace clp_s {
 class ArchiveReader {
@@ -28,7 +37,7 @@ public:
     };
 
     // Constructor
-    ArchiveReader() : m_is_open(false) {}
+    ArchiveReader() {}
 
     /**
      * Opens an archive for reading.
@@ -52,7 +61,7 @@ public:
      * @param lazy
      * @return the variable dictionary reader
      */
-    std::shared_ptr<VariableDictionaryReader> read_variable_dictionary(bool lazy = false) {
+    auto read_variable_dictionary(bool lazy = false) -> std::shared_ptr<VariableDictionaryReader> {
         m_var_dict->read_entries(lazy);
         return m_var_dict;
     }
@@ -62,7 +71,7 @@ public:
      * @param lazy
      * @return the log type dictionary reader
      */
-    std::shared_ptr<LogTypeDictionaryReader> read_log_type_dictionary(bool lazy = false) {
+    auto read_log_type_dictionary(bool lazy = false) -> std::shared_ptr<LogTypeDictionaryReader> {
         m_log_dict->read_entries(lazy);
         return m_log_dict;
     }
@@ -72,7 +81,7 @@ public:
      * @param lazy
      * @return the array dictionary reader
      */
-    std::shared_ptr<LogTypeDictionaryReader> read_array_dictionary(bool lazy = false) {
+    auto read_array_dictionary(bool lazy = false) -> std::shared_ptr<LogTypeDictionaryReader> {
         m_array_dict->read_entries(lazy);
         return m_array_dict;
     }
@@ -89,33 +98,35 @@ public:
      * @param should_marshal_records
      * @return the schema reader
      */
-    SchemaReader& read_schema_table(
-            int32_t schema_id,
-            bool should_extract_timestamp,
-            bool should_marshal_records
-    );
+    auto
+    read_schema_table(int32_t schema_id, bool should_extract_timestamp, bool should_marshal_records)
+            -> SchemaReader&;
 
     /**
      * Loads all of the tables in the archive and returns SchemaReaders for them.
      * @return the schema readers for every table in the archive
      */
-    std::vector<std::shared_ptr<SchemaReader>> read_all_tables();
+    auto read_all_tables() -> std::vector<std::shared_ptr<SchemaReader>>;
 
-    std::string_view get_archive_id() { return m_archive_id; }
+    auto get_archive_id() -> std::string_view { return m_archive_id; }
 
-    std::shared_ptr<VariableDictionaryReader> get_variable_dictionary() { return m_var_dict; }
+    auto get_variable_dictionary() -> std::shared_ptr<VariableDictionaryReader> {
+        return m_var_dict;
+    }
 
-    std::shared_ptr<LogTypeDictionaryReader> get_log_type_dictionary() { return m_log_dict; }
+    auto get_log_type_dictionary() -> std::shared_ptr<LogTypeDictionaryReader> {
+        return m_log_dict;
+    }
 
-    std::shared_ptr<LogTypeDictionaryReader> get_array_dictionary() { return m_array_dict; }
+    auto get_array_dictionary() -> std::shared_ptr<LogTypeDictionaryReader> { return m_array_dict; }
 
-    std::shared_ptr<TimestampDictionaryReader> get_timestamp_dictionary() {
+    auto get_timestamp_dictionary() -> std::shared_ptr<TimestampDictionaryReader> {
         return m_archive_reader_adaptor->get_timestamp_dictionary();
     }
 
-    std::shared_ptr<SchemaTree> get_schema_tree() { return m_schema_tree; }
+    auto get_schema_tree() -> std::shared_ptr<SchemaTree> { return m_schema_tree; }
 
-    std::shared_ptr<ReaderUtils::SchemaMap> get_schema_map() { return m_schema_map; }
+    auto get_schema_map() -> std::shared_ptr<ReaderUtils::SchemaMap> { return m_schema_map; }
 
     /**
      * Writes decoded messages to a file.
@@ -132,16 +143,18 @@ public:
      * @return The schema ids in the archive. It also defines the order that tables should be read
      * in to avoid seeking backwards.
      */
-    [[nodiscard]] std::vector<int32_t> const& get_schema_ids() const { return m_schema_ids; }
+    [[nodiscard]] auto get_schema_ids() const -> std::vector<int32_t> const& {
+        return m_schema_ids;
+    }
 
     void set_projection(std::shared_ptr<search::Projection> projection) {
-        m_projection = projection;
+        m_projection = std::move(projection);
     }
 
     /**
      * @return true if this archive has log ordering information, and false otherwise.
      */
-    bool has_log_order() { return m_log_event_idx_column_id >= 0; }
+    [[nodiscard]] auto has_log_order() const -> bool { return m_log_event_idx_column_id >= 0; }
 
 private:
     /**
@@ -165,7 +178,7 @@ private:
      * @return a pointer to the newly appended column reader or nullptr if no column reader was
      * created
      */
-    BaseColumnReader* append_reader_column(SchemaReader& reader, int32_t column_id);
+    auto append_reader_column(SchemaReader& reader, int32_t column_id) -> BaseColumnReader*;
 
     /**
      * Appends columns for the entire schema of an unordered object.
@@ -191,9 +204,9 @@ private:
      * returned previous calls to read_stream
      * @return a buffer containing the decompressed stream identified by stream_id
      */
-    std::shared_ptr<char[]> read_stream(size_t stream_id, bool reuse_buffer);
+    auto read_stream(size_t stream_id, bool reuse_buffer) -> std::shared_ptr<char[]>;
 
-    bool m_is_open;
+    bool m_is_open{false};
     std::string m_archive_id;
     std::shared_ptr<VariableDictionaryReader> m_var_dict;
     std::shared_ptr<LogTypeDictionaryReader> m_log_dict;
@@ -211,7 +224,7 @@ private:
     PackedStreamReader m_stream_reader;
     ZstdDecompressor m_table_metadata_decompressor;
     SchemaReader m_schema_reader;
-    std::shared_ptr<char[]> m_stream_buffer{};
+    std::shared_ptr<char[]> m_stream_buffer;
     size_t m_stream_buffer_size{0ULL};
     size_t m_cur_stream_id{0ULL};
     int32_t m_log_event_idx_column_id{-1};
