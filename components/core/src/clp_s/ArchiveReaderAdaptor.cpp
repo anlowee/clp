@@ -20,6 +20,8 @@
 #include "RangeIndexWriter.hpp"
 #include "SingleFileArchiveDefs.hpp"
 
+#include <iostream>
+
 namespace clp_s {
 ArchiveReaderAdaptor::ArchiveReaderAdaptor(
         Path const& archive_path,
@@ -184,6 +186,7 @@ ErrorCode ArchiveReaderAdaptor::try_read_header(clp::ReaderInterface& reader) {
             sizeof(m_archive_header)
     );
     if (clp::ErrorCode::ErrorCode_Success != clp_rc) {
+        std::cout << clp_rc << std::endl;
         return ErrorCodeErrno;
     }
 
